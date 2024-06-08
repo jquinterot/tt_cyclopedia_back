@@ -6,4 +6,4 @@ router = APIRouter(prefix="/comments",
 
 @router.get("")
 def get_comments():
-    return {"comment": "this is a comment", "commentId": "6j542e"}
+    return {"comment": "this is a comment", "id": "6j542e"}

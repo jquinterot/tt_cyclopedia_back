@@ -1,5 +1,8 @@
+To run this command please open api folder
+
 commands:
-fastapi dev main.py
+fastapi dev run_app.py
+
 
 docs url:
 http://127.0.0.1:8000/docs

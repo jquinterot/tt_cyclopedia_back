@@ -4,6 +4,8 @@ router = APIRouter(prefix="/comments",
                    )
 
 
+##Add Pydantic model and db schema to get comments from db, equal to insert in db
+
 @router.get("")
 def get_comments():
     comments = [
@@ -12,6 +14,8 @@ def get_comments():
         # Add more comments as needed
     ]
     return comments
+
+
 @router.post("")
 def post_comments():
     return {"comment", "txt"}

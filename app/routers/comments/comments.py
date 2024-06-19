@@ -17,15 +17,13 @@ class Config:
 db = SessionLocal()
 
 
-##Add Pydantic model and db schema to get comments from db, equal to insert in db
-
 @router.get("", response_model=List[Comment], status_code=status.HTTP_200_OK)
 def get_comments():
     comments = db.query(Comments).all()
     return comments
 
 
-@router.get("/{item_id}", status_code=200)
+@router.get("/{item_id}", response_model=Comment, status_code=200)
 def get_comment(item_id: str):
     item_to_get = db.query(Comments).filter(Comments.id == item_id).first()
     if item_to_get is None:

@@ -1,7 +1,10 @@
-##Pydantic schema here
 from pydantic import BaseModel
 
 
 class Comment(BaseModel):
-    id: int
+    id: str
+    comment: str
+
+
+class PlainComment(BaseModel):
     comment: str

@@ -5,7 +5,6 @@ from app.routers.comments.comments import router as comments_router
 from app.routers.posts.posts import router as posts_router
 from app.routers.users.users import router as users_router
 from app.config.postgres_config import Base, engine, SessionLocal
-from app.routers.comments.models import Comments
 
 
 Base.metadata.create_all(bind=engine)
@@ -16,7 +15,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['http://localhost:5173'],
+    allow_origins=['*'],
     allow_methods=['*'],
     allow_headers=['*'],
 )

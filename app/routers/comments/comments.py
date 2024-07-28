@@ -1,6 +1,6 @@
 from fastapi import APIRouter, status
 from fastapi.exceptions import HTTPException
-from .schemas import Comment, PlainComment
+from .schemas import Comment
 from .models import Comments
 from typing import Optional, List
 from app.config.postgres_config import SessionLocal
@@ -33,7 +33,7 @@ def get_comment(item_id: str):
 
 
 @router.post("", response_model=Comment, status_code=status.HTTP_201_CREATED)
-def post_comment(comment: PlainComment):
+def post_comment(comment: Comment):
     new_comment = Comments(
         id=shortuuid.uuid(),
         comment=comment.comment
@@ -44,7 +44,7 @@ def post_comment(comment: PlainComment):
 
 
 @router.put("/{item_id}", response_model=Comment, status_code=status.HTTP_201_CREATED)
-def update_comment(item_id, updated_comment: PlainComment):
+def update_comment(item_id, updated_comment: Comment):
     item_to_update = db.query(Comments).filter(Comments.id == item_id).first()
     if item_to_update is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")

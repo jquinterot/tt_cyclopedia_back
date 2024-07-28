@@ -1,10 +1,9 @@
+from typing import Optional
+
 from pydantic import BaseModel
 
 
 class Comment(BaseModel):
-    id: str
+    id: Optional[str] = None
     comment: str
 
-
-class PlainComment(BaseModel):
-    comment: str

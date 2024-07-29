@@ -26,6 +26,7 @@ def get_comments():
 @router.get("/{item_id}", response_model=Comment, status_code=200)
 def get_comment(item_id: str):
     item_to_get = db.query(Comments).filter(Comments.id == item_id).first()
+
     if item_to_get is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
 
@@ -46,10 +47,11 @@ def post_comment(comment: Comment):
 @router.put("/{item_id}", response_model=Comment, status_code=status.HTTP_201_CREATED)
 def update_comment(item_id, updated_comment: Comment):
     item_to_update = db.query(Comments).filter(Comments.id == item_id).first()
+
     if item_to_update is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
-    item_to_update.comment = updated_comment.comment
 
+    item_to_update.comment = updated_comment.comment
     db.commit()
     return item_to_update
 
@@ -57,8 +59,10 @@ def update_comment(item_id, updated_comment: Comment):
 @router.delete("/{item_id}", status_code=200)
 def delete_comment(item_id: str):
     item_to_delete = db.query(Comments).filter(Comments.id == item_id).first()
+
     if item_to_delete is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
+
     db.delete(item_to_delete)
     db.commit()
     return item_to_delete

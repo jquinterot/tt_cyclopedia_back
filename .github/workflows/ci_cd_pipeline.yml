@@ -1,0 +1,17 @@
+name: CI/CD Pipeline
+
+on: push
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Poetry Install
+        uses: knowsuchagency/poetry-install@v2
+
+      - name: Install dependencies
+        run: poetry install
+
+      - name: Run unit test
+        run: poetry run test

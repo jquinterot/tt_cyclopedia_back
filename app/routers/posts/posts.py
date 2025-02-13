@@ -1,4 +1,5 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, Depends
+from sqlalchemy.orm import Session
 from .models import Posts
 from .schemas import Post
 from typing import Optional, List
@@ -13,17 +14,22 @@ class Config:
     orm_mode = True
 
 
-db = SessionLocal()
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 @router.get("", response_model=List[Post], status_code=status.HTTP_200_OK)
-def get_posts():
+def get_posts(db: Session = Depends(get_db)):
     posts = db.query(Posts).all()
     return posts
 
 
 @router.get("/{post_id}", response_model=Post, status_code=status.HTTP_200_OK)
-def get_posts(post_id):
+def get_posts(post_id: str, db: Session = Depends(get_db)):
     post_to_get = db.query(Posts).filter(Posts.id == post_id).first()
 
     if post_to_get is None:
@@ -32,8 +38,10 @@ def get_posts(post_id):
 
 
 @router.post("", response_model=Post, status_code=status.HTTP_201_CREATED)
-def post_comment(post: Post):
-    existing_post: str = db.query(Posts).filter(Posts.title == post.title).first()
+def post_comment(post: Post, db: Session = Depends(get_db)):
+    existing_post: Optional[Posts] = db.query(Posts).filter(
+        Posts.title == post.title
+    ).first()
 
     if existing_post is not None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Post already exists")

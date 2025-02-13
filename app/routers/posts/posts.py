@@ -55,3 +55,18 @@ def post_comment(post: Post, db: Session = Depends(get_db)):
     db.add(new_post)
     db.commit()
     return new_post
+
+
+@router.delete("/all", status_code=status.HTTP_204_NO_CONTENT)
+def delete_all_posts(db: Session = Depends(get_db)):
+    try:
+        deleted_count = db.query(Posts).delete()
+        db.commit()
+        return {"deleted_count": deleted_count}
+
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error deleting posts: {str(e)}"
+        )

@@ -22,6 +22,15 @@ def get_posts():
     return posts
 
 
+@router.get("/{post_id}", response_model=Post, status_code=status.HTTP_200_OK)
+def get_posts(post_id):
+    post_to_get = db.query(Posts).filter(Posts.id == post_id).first()
+
+    if post_to_get is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
+    return post_to_get
+
+
 @router.post("", response_model=Post, status_code=status.HTTP_201_CREATED)
 def post_comment(post: Post):
     existing_post: str = db.query(Posts).filter(Posts.title == post.title).first()

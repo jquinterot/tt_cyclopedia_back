@@ -1,11 +1,20 @@
-from typing import Optional
-
+# app/routers/posts/schemas.py
 from pydantic import BaseModel
 
 
-class Post(BaseModel):
-    id: Optional[str] = None
+class PostBase(BaseModel):
     title: str
     content: str
-    img: Optional[str] = ''
-    likes: Optional[int] = 0
+    image_url: str  # Changed from image_id
+    likes: int = 0
+
+
+class PostCreate(PostBase):
+    pass
+
+
+class PostResponse(PostBase):
+    id: str
+
+    class Config:
+        from_attributes = True  # Updated from orm_mode

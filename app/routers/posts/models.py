@@ -1,7 +1,7 @@
-# app/routers/posts/models.py
 from app.config.postgres_config import Base
 from sqlalchemy import Column, String, Text, Integer
 import shortuuid
+from sqlalchemy.orm import relationship
 
 
 class Posts(Base):
@@ -14,3 +14,4 @@ class Posts(Base):
     image_url = Column(String(512), nullable=False)  # Changed from image_id
     likes = Column(Integer, default=0)
 
+    comments = relationship("Comments", back_populates="post", cascade="all, delete-orphan")

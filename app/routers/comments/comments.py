@@ -26,6 +26,9 @@ def get_db():
 @router.get("", response_model=List[Comment], status_code=status.HTTP_200_OK)
 def get_comments(db: Session = Depends(get_db)):
     comments = db.query(Comments).all()
+    if comments is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
+
     return comments
 
 
@@ -43,10 +46,14 @@ def get_comment(item_id: str, db: Session = Depends(get_db)):
 def post_comment(comment: Comment, db: Session = Depends(get_db)):
     new_comment = Comments(
         id=shortuuid.uuid(),
-        comment=comment.comment
+        comment=comment.comment,
+        post_id=comment.post_id,
+        user_id=comment.user_id
+
     )
     db.add(new_comment)
     db.commit()
+    db.refresh(new_comment)
     return new_comment
 
 
@@ -71,4 +78,11 @@ def delete_comment(item_id: str, db: Session = Depends(get_db)):
 
     db.delete(item_to_delete)
     db.commit()
-    return item_to_delete
+    return {"detail": "Deleted successfully"}
+
+
+@router.get("/post/{post_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
+def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
+    comments = db.query(Comments).filter(Comments.post_id == post_id).all()
+
+    return comments

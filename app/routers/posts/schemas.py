@@ -15,6 +15,3 @@ class PostCreate(PostBase):
 
 class PostResponse(PostBase):
     id: str
-
-    class Config:
-        from_attributes = True  # Updated from orm_mode

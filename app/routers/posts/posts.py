@@ -2,12 +2,11 @@ from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File,
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from .models import Posts
-from .schemas import PostCreate, PostResponse
+from .schemas import PostResponse
 from typing import List
 from app.config.postgres_config import SessionLocal
 import shortuuid
-from pathlib import Path
-from app.config.image_config import DEFAULT_IMAGE_DIR, UPLOAD_DIR
+from app.config.image_config import UPLOAD_DIR
 import shutil
 
 router = APIRouter(prefix="/posts")
@@ -25,6 +24,10 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+class Config:
+    orm_mode = True
 
 
 @router.get("", response_model=List[PostResponse], status_code=status.HTTP_200_OK)

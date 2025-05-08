@@ -13,6 +13,7 @@ start_app = "run_app:start"
 test = "pytest:main"
 
 [tool.poetry.dependencies]
+certifi = "2024.2.2"  # Explicitly pin working version
 python = "^3.12"
 fastapi = "^0.111.0"
 uvicorn = {extras = ["standard"], version = "^0.30.1"}
@@ -29,6 +30,7 @@ gunicorn = "^23.0.0"
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"
 alembic = "^1.15.2"
+typing-extensions = "4.12.2"  # Pin this exact version
 
 [build-system]
 requires = ["poetry-core"]

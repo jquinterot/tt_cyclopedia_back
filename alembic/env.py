@@ -79,7 +79,10 @@ def run_migrations_online() -> None:
     with connectable.connect() as connection:
         connection.execute(text('SET search_path TO cyclopedia_owner'))
         context.configure(
-            connection=connection, target_metadata=target_metadata, include_schemas=True
+            connection=connection,
+            target_metadata=target_metadata,
+            include_schemas=True,
+            version_table_schema='cyclopedia_owner'
         )
 
         with context.begin_transaction():

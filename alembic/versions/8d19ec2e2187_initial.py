@@ -24,7 +24,8 @@ def upgrade() -> None:
                     sa.Column('id', sa.String(length=255), nullable=False),
                     sa.Column('username', sa.String(length=255), nullable=False),
                     sa.PrimaryKeyConstraint('id'),
-                    schema='cyclopedia_owner'
+                    schema='cyclopedia_owner',
+                    if_not_exists=True
                     )
 
     op.create_table('posts',

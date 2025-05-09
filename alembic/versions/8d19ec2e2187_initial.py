@@ -35,7 +35,9 @@ def upgrade() -> None:
                     sa.Column('image_url', sa.String(length=512), nullable=False),
                     sa.Column('likes', sa.Integer(), server_default='0'),
                     sa.PrimaryKeyConstraint('id'),
-                    schema='cyclopedia_owner'
+                    schema='cyclopedia_owner',
+                    if_not_exists=True
+
                     )
 
     op.create_table('comments',
@@ -46,7 +48,8 @@ def upgrade() -> None:
                     sa.ForeignKeyConstraint(['post_id'], ['cyclopedia_owner.posts.id'], ondelete='CASCADE'),
                     sa.ForeignKeyConstraint(['user_id'], ['cyclopedia_owner.users.id'], ondelete='CASCADE'),
                     sa.PrimaryKeyConstraint('id'),
-                    schema='cyclopedia_owner'
+                    schema='cyclopedia_owner',
+                    if_not_exists=True
                     )
     # ### end Alembic commands ###
 

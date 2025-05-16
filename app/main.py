@@ -19,7 +19,7 @@ def startup_event():
     # Create default admin user if not exists
     db = SessionLocal()
     try:
-        admin_id: str = "default_admin_id"  # Consistent ID across environments
+        admin_id: str = "default_admin_id"  # default_admin_idConsistent ID across environments
         admin_username: str = "admin"
 
         # Check if admin user with the specific ID exists

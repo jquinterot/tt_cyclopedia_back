@@ -1,5 +1,5 @@
 from app.config.postgres_config import Base
-from sqlalchemy import String, Boolean, Integer, Column
+from sqlalchemy import String, Column
 from sqlalchemy.orm import relationship
 
 

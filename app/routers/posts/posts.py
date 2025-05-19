@@ -73,7 +73,6 @@ async def create_post(
                     )
             image.file.seek(0)
 
-            # Generate unique filename
             file_ext = image.filename.split(".")[-1]
             filename = f"{shortuuid.uuid()}.{file_ext}"
             file_path = UPLOAD_DIR / filename
@@ -84,7 +83,6 @@ async def create_post(
 
             image_url = f"/static/uploads/{filename}"
 
-        # Create post
         new_post = Posts(
             title=title,
             content=content,
@@ -124,7 +122,6 @@ def delete_post(post_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Post not found")
 
     try:
-        # Delete associated image only if it's user-uploaded
         if not is_default_image(post.image_url):
             filename = post.image_url.split("/")[-1]
             file_path = UPLOAD_DIR / filename

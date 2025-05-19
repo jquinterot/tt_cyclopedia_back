@@ -3,7 +3,7 @@ from fastapi.exceptions import HTTPException
 from sqlalchemy.orm import Session
 from .schemas import Comment
 from .models import Comments
-from typing import Optional, List
+from typing import List
 from app.config.postgres_config import SessionLocal
 import shortuuid
 

@@ -30,9 +30,19 @@ def get_users(db: Session = Depends(get_db)):
     users = db.query(Users).all()
     return users
 
+@router.get("/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
+def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(Users).filter(Users.id == user_id).first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return user
+
+
 
 @router.post("", response_model=User, status_code=status.HTTP_201_CREATED)
-def post_comment(user: User, db: Session = Depends(get_db)):
+def post_user(user: User, db: Session = Depends(get_db)):
     existing_username: Optional[Users] = db.query(Users).filter(Users.username == user.username).first()
 
     if existing_username is not None:
@@ -40,7 +50,8 @@ def post_comment(user: User, db: Session = Depends(get_db)):
 
     new_user = Users(
         id=shortuuid.uuid(),
-        username=user.username)
+        username=user.username,
+        password=user.password,)
 
     db.add(new_user)
     db.commit()

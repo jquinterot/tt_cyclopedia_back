@@ -11,7 +11,7 @@ async def seed_default_admin():
     try:
         admin = db.query(Users).filter(Users.username == "admin").first()
         if not admin:
-            db.add(Users(id="default_admin_id", username="admin"))
+            db.add(Users(id="default_admin_id", username="admin", password="admin", email="admin@email.com"))
             db.commit()
             print("✔ Admin user seeded")
     except IntegrityError as e:

@@ -1,0 +1,10 @@
+docker build -t python:poetry .
+docker run -d -p 8000:8000 --name cyclopedia_back python:poetry
+
+# Install new package
+pip install fastapi-sqlalchemy
+
+# Update requirements.txt
+pip freeze > requirements.txt
+
+ docker-compose down -v && docker-compose up --build

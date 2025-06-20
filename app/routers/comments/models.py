@@ -1,6 +1,8 @@
-from app.config.postgres_config import Base
-from sqlalchemy import String, Boolean, Integer, Column, ForeignKey
+from datetime import datetime
+
+from sqlalchemy import String, Column, ForeignKey, Integer, DateTime
 from sqlalchemy.orm import relationship
+from app.config.postgres_config import Base
 
 
 class Comments(Base):
@@ -10,5 +12,9 @@ class Comments(Base):
     comment = Column(String(255), nullable=False, unique=False)
     post_id = Column(String(255), ForeignKey('cyclopedia_owner.posts.id', ondelete='CASCADE'), nullable=False)
     user_id = Column(String(255), ForeignKey('cyclopedia_owner.users.id', ondelete='CASCADE'), nullable=False)
+    parent_id = Column(String(255), nullable=True)
+    likes = Column(Integer, default=0)
+    username = Column(String(255), nullable=True)
     post = relationship("Posts", back_populates="comments")
     users = relationship("Users", back_populates="comments")
+    timestamp = Column(DateTime, default=datetime.utcnow)

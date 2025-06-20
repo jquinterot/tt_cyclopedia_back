@@ -33,3 +33,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 @app.get("/")
 def read_root():
     return {"message": "Server is running"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}

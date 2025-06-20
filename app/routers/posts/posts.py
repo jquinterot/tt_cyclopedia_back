@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -48,6 +50,7 @@ def get_post(post_id: str, db: Session = Depends(get_db)):
 async def create_post(
         title: str = Form(...),
         content: str = Form(...),
+        author: str = Form(...),
         image: UploadFile = File(None),
         db: Session = Depends(get_db)
 ):
@@ -87,7 +90,8 @@ async def create_post(
             title=title,
             content=content,
             image_url=image_url,
-            likes=0
+            likes=0,
+            author=author,
         )
 
         db.add(new_post)

@@ -1,8 +1,8 @@
 FROM python:3.12-slim
 
-# Install system dependencies for psycopg2
+# Install system dependencies for psycopg2 AND git
 RUN apt-get update && \
-    apt-get install -y libpq-dev gcc && \
+    apt-get install -y libpq-dev gcc git && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

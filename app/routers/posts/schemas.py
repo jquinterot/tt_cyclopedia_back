@@ -7,7 +7,7 @@ from pydantic import BaseModel
 class PostBase(BaseModel):
     title: str
     content: str
-    image_url: str  # Changed from image_id
+    image_url: str
     likes: int = 0
     author: str
     timestamp: datetime

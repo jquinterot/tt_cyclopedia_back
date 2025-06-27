@@ -1,15 +1,18 @@
 from datetime import datetime
 
-from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form
+from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form, Response
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from .models import Posts
+from .models import Posts, PostLike
 from .schemas import PostResponse
 from typing import List
 from app.config.postgres_config import SessionLocal
+from app.auth.dependencies import get_current_user, get_db
+from app.routers.users.models import Users
 import shortuuid
 from app.config.image_config import UPLOAD_DIR
 import shutil
+import json
 
 router = APIRouter(prefix="/posts")
 
@@ -20,42 +23,75 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 class Config:
     orm_mode = True
 
 
 @router.get("", response_model=List[PostResponse], status_code=status.HTTP_200_OK)
-def get_posts(db: Session = Depends(get_db)):
+def get_posts(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     posts = db.query(Posts).all()
-    return posts
+    result = []
+    for post in posts:
+        likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
+        liked = False
+        if current_user:
+            liked = db.query(PostLike).filter_by(post_id=post.id, user_id=current_user.id).first() is not None
+        result.append(PostResponse(
+            id=post.id,
+            title=post.title,
+            content=post.content,
+            image_url=post.image_url,
+            likes=likes_count,
+            author=post.author,
+            timestamp=post.timestamp,
+            stats=post.stats,
+            likedByCurrentUser=liked
+        ))
+    return result
 
 
 @router.get("/{post_id}", response_model=PostResponse, status_code=status.HTTP_200_OK)
-def get_post(post_id: str, db: Session = Depends(get_db)):
+def get_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     post = db.query(Posts).filter(Posts.id == post_id).first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-    return post
+    likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
+    liked = False
+    if current_user:
+        liked = db.query(PostLike).filter_by(post_id=post.id, user_id=current_user.id).first() is not None
+    return PostResponse(
+        id=post.id,
+        title=post.title,
+        content=post.content,
+        image_url=post.image_url,
+        likes=likes_count,
+        author=post.author,
+        timestamp=post.timestamp,
+        stats=post.stats,
+        likedByCurrentUser=liked
+    )
 
 
 @router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
         title: str = Form(...),
         content: str = Form(...),
-        author: str = Form(...),
+        stats: str = Form(None),  # Accept as string
         image: UploadFile = File(None),
+        current_user: Users = Depends(get_current_user),
         db: Session = Depends(get_db)
 ):
+    import json
     try:
         image_url = DEFAULT_IMAGE_URL
+
+        # Parse stats string to dict
+        stats_dict = None
+        if stats:
+            try:
+                stats_dict = json.loads(stats)
+            except Exception:
+                raise HTTPException(status_code=400, detail="Invalid stats JSON format")
 
         if image and image.filename:
             # Validate file type
@@ -91,14 +127,31 @@ async def create_post(
             content=content,
             image_url=image_url,
             likes=0,
-            author=author,
+            author=current_user.username,  # Use authenticated user's username
+            stats=stats_dict,  # Store as dict/JSON
         )
 
         db.add(new_post)
         db.commit()
         db.refresh(new_post)
 
-        return new_post
+        # Calculate likes and likedByCurrentUser
+        likes_count = db.query(PostLike).filter_by(post_id=new_post.id).count()
+        liked = False
+        if current_user:
+            liked = db.query(PostLike).filter_by(post_id=new_post.id, user_id=current_user.id).first() is not None
+
+        return PostResponse(
+            id=new_post.id,
+            title=new_post.title,
+            content=new_post.content,
+            image_url=new_post.image_url,
+            likes=likes_count,
+            author=new_post.author,
+            timestamp=new_post.timestamp,
+            stats=new_post.stats,
+            likedByCurrentUser=liked
+        )
 
     except IntegrityError:
         db.rollback()
@@ -119,14 +172,25 @@ def is_default_image(image_url: str) -> bool:
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(post_id: str, db: Session = Depends(get_db)):
+def delete_post(
+    post_id: str, 
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     post = db.query(Posts).filter(Posts.id == post_id).first()
 
-    if not post:
+    if post is None:
         raise HTTPException(status_code=404, detail="Post not found")
 
+    # Check if the user owns this post
+    if getattr(post, 'author', None) != current_user.username:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="You can only delete your own posts"
+        )
+
     try:
-        if not is_default_image(post.image_url):
+        if not is_default_image(getattr(post, 'image_url', '')):
             filename = post.image_url.split("/")[-1]
             file_path = UPLOAD_DIR / filename
             if file_path.exists():
@@ -141,12 +205,16 @@ def delete_post(post_id: str, db: Session = Depends(get_db)):
 
 
 @router.delete("/all", status_code=status.HTTP_204_NO_CONTENT)
-def delete_all_posts(db: Session = Depends(get_db)):
+def delete_all_posts(
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Only allow admin users to delete all posts (you might want to add an admin field to users)
     try:
         posts = db.query(Posts).all()
 
         for post in posts:
-            if not is_default_image(post.image_url):
+            if not is_default_image(getattr(post, 'image_url', '')):
                 filename = post.image_url.split("/")[-1]
                 file_path = UPLOAD_DIR / filename
                 if file_path.exists():
@@ -158,3 +226,29 @@ def delete_all_posts(db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(500, f"Error deleting posts: {str(e)}")
+
+
+@router.post("/{post_id}/like", status_code=204)
+def like_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
+    if like:
+        raise HTTPException(status_code=400, detail="Already liked")
+    db.add(PostLike(user_id=current_user.id, post_id=post_id))
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.delete("/{post_id}/like", status_code=204)
+def unlike_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
+    if not like:
+        raise HTTPException(status_code=400, detail="Not liked yet")
+    db.delete(like)
+    db.commit()
+    return Response(status_code=204)
+
+
+@router.get("/{post_id}/likes", status_code=200)
+def get_post_likes(post_id: str, db: Session = Depends(get_db)):
+    likes = db.query(PostLike).filter_by(post_id=post_id).all()
+    return [{"user_id": like.user_id, "created_at": like.created_at} for like in likes]

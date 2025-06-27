@@ -27,6 +27,9 @@ pylint = "^3.2.6"
 python-multipart = "^0.0.19"
 gunicorn = "^23.0.0"
 alembic = "^1.15.2"
+passlib = "^1.7.4"
+bcrypt = "^4.1.2"
+PyJWT = "^2.10.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.2"

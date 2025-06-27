@@ -1,4 +1,5 @@
 from datetime import datetime
+import shortuuid
 
 from sqlalchemy import String, Column, ForeignKey, Integer, DateTime
 from sqlalchemy.orm import relationship
@@ -18,3 +19,13 @@ class Comments(Base):
     post = relationship("Posts", back_populates="comments")
     users = relationship("Users", back_populates="comments")
     timestamp = Column(DateTime, default=datetime.utcnow)
+    comment_likes = relationship("CommentLike", backref="comment", cascade="all, delete-orphan")
+
+
+class CommentLike(Base):
+    __tablename__ = 'comment_likes'
+    __table_args__ = {"schema": "cyclopedia_owner"}
+    id = Column(String(255), primary_key=True, default=lambda: shortuuid.uuid())
+    comment_id = Column(String(255), ForeignKey('cyclopedia_owner.comments.id', ondelete='CASCADE'), nullable=False)
+    user_id = Column(String(255), ForeignKey('cyclopedia_owner.users.id', ondelete='CASCADE'), nullable=False)
+

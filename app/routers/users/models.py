@@ -9,11 +9,10 @@ class Users(Base):
     __tablename__ = 'users'
     __table_args__ = {"schema": "cyclopedia_owner"}
     id = Column(String(255), nullable=False, primary_key=True, unique=True)
-    username = Column(String(255), nullable=False, primary_key=True, unique=True)
-    password = Column(String(255), nullable=False, primary_key=True, unique=True)
-    email = Column(String(255), nullable=False, primary_key=True, unique=True)
+    username = Column(String(255), nullable=False, unique=True)
+    password = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False, unique=True)
     timestamp = Column(DateTime, default=datetime.utcnow)
-
 
     comments = relationship("Comments", back_populates="users")
 

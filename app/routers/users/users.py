@@ -6,11 +6,15 @@ from .models import Users
 from typing import Optional, List
 from app.config.postgres_config import SessionLocal
 import shortuuid
+from passlib.context import CryptContext
+from app.auth.jwt_handler import jwt_handler
 
-from .schemas import User
+from .schemas import User, UserCreate, UserLogin, UserResponse, LoginResponse
 
 router = APIRouter(prefix="/users",
                    )
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class Config:
@@ -25,12 +29,21 @@ def get_db():
         db.close()
 
 
-@router.get("", response_model=List[User], status_code=status.HTTP_200_OK)
+def hash_password(password: str) -> str:
+    return pwd_context.hash(password)
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    return pwd_context.verify(plain_password, hashed_password)
+
+
+@router.get("", response_model=List[UserResponse], status_code=status.HTTP_200_OK)
 def get_users(db: Session = Depends(get_db)):
     users = db.query(Users).all()
     return users
 
-@router.get("/{user_id}", response_model=User, status_code=status.HTTP_200_OK)
+
+@router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
 def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
     user = db.query(Users).filter(Users.id == user_id).first()
 
@@ -40,19 +53,51 @@ def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
     return user
 
 
+@router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
+def login(user_data: UserLogin, db: Session = Depends(get_db)):
+    user = db.query(Users).filter(Users.username == user_data.username).first()
+    
+    if not user or not verify_password(user_data.password, user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, 
+            detail="Invalid username or password"
+        )
+    
+    # Create access token
+    access_token = jwt_handler.create_access_token(data={"sub": user.username})
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "user": {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email
+        }
+    }
 
-@router.post("", response_model=User, status_code=status.HTTP_201_CREATED)
-def post_user(user: User, db: Session = Depends(get_db)):
+
+@router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def post_user(user: UserCreate, db: Session = Depends(get_db)):
     existing_username: Optional[Users] = db.query(Users).filter(Users.username == user.username).first()
+    existing_email: Optional[Users] = db.query(Users).filter(Users.email == user.email).first()
 
     if existing_username is not None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User already exists")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
+    
+    if existing_email is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exists")
 
+    hashed_password = hash_password(user.password)
+    
     new_user = Users(
         id=shortuuid.uuid(),
         username=user.username,
-        password=user.password,)
+        password=hashed_password,
+        email=user.email
+    )
 
     db.add(new_user)
     db.commit()
+    db.refresh(new_user)
     return new_user

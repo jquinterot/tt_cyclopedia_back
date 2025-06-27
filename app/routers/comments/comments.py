@@ -2,10 +2,12 @@ from fastapi import APIRouter, status, Depends
 from fastapi.exceptions import HTTPException
 from sqlalchemy import null
 from sqlalchemy.orm import Session
-from .schemas import Comment, CommentCreate
-from .models import Comments
+from .schemas import Comment, CommentCreate, CommentUpdate
+from .models import Comments, CommentLike
 from typing import List
 from app.config.postgres_config import SessionLocal
+from app.auth.dependencies import get_current_user, get_db
+from app.routers.users.models import Users
 import shortuuid
 
 router = APIRouter(prefix="/comments",
@@ -16,21 +18,25 @@ class Config:
     orm_mode = True
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
 @router.get("", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_comments(db: Session = Depends(get_db)):
+def get_comments(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     comments = db.query(Comments).all()
-    if comments is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
-
-    return comments
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    result = []
+    for c in comments:
+        result.append(Comment(
+            id=c.id,
+            comment=c.comment,
+            post_id=c.post_id,
+            parent_id=c.parent_id,
+            user_id=c.user_id,
+            username=c.username,
+            liked_by_current_user=c.id in liked_ids,
+            likes=c.likes or 0
+        ))
+    return result
 
 
 @router.get("/{item_id}", response_model=Comment, status_code=200)
@@ -44,16 +50,19 @@ def get_comment(item_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=Comment, status_code=status.HTTP_201_CREATED)
-def post_comment(comment: CommentCreate
-, db: Session = Depends(get_db)):
+def post_comment(
+    comment: CommentCreate,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    # Use the authenticated user's information
     new_comment = Comments(
         id=shortuuid.uuid(),
         comment=comment.comment,
         post_id=comment.post_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        user_id=current_user.id,  # Use authenticated user's ID
+        username=current_user.username,  # Use authenticated user's username
         parent_id=comment.parent_id
-
     )
     db.add(new_comment)
     db.commit()
@@ -61,25 +70,53 @@ def post_comment(comment: CommentCreate
     return new_comment
 
 
-@router.put("/{item_id}", response_model=Comment, status_code=status.HTTP_201_CREATED)
-def update_comment(item_id: str, updated_comment: Comment, db: Session = Depends(get_db)):
+@router.put("/{item_id}", response_model=Comment, status_code=status.HTTP_200_OK)
+def update_comment(
+    item_id: str, 
+    updated_comment: CommentUpdate, 
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     item_to_update = db.query(Comments).filter(Comments.id == item_id).first()
-
     if item_to_update is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resourse Not Found")
-
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource Not Found")
+    if item_to_update.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only edit your own comments")
     item_to_update.comment = updated_comment.comment
     db.commit()
-    return item_to_update
+    liked_by_current_user = db.query(CommentLike).filter_by(
+        comment_id=item_to_update.id, user_id=current_user.id
+    ).first() is not None
+    return Comment(
+        id=item_to_update.id,
+        comment=item_to_update.comment,
+        post_id=item_to_update.post_id,
+        parent_id=item_to_update.parent_id,
+        user_id=item_to_update.user_id,
+        username=item_to_update.username,
+        likes=item_to_update.likes or 0,
+        liked_by_current_user=liked_by_current_user
+    )
 
 
 @router.delete("/{item_id}", status_code=status.HTTP_200_OK)
-def delete_comment_with_replies(item_id: str, db: Session = Depends(get_db)):
+def delete_comment_with_replies(
+    item_id: str, 
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
     # Query the comment to delete
     comment_to_delete = db.query(Comments).filter(Comments.id == item_id).first()
 
     if not comment_to_delete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+
+    # Check if the user owns this comment
+    if comment_to_delete.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="You can only delete your own comments"
+        )
 
     # Delete all child comments where parent_id matches the given item ID
     if comment_to_delete.parent_id is None:
@@ -103,9 +140,6 @@ def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
 @router.get("/post/{post_id}/replies/{comment_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
 def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends(get_db)):
     replies = db.query(Comments).filter(Comments.parent_id == comment_id).filter(Comments.post_id == post_id).all()
-    if not replies:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No replies found for this comment")
-
     return replies
 
 @router.get("/post/{post_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK)
@@ -122,4 +156,66 @@ def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
 
     return main_comments
 
+@router.post("/{comment_id}/like", response_model=Comment, status_code=200)
+def toggle_like_comment(
+    comment_id: str,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    existing = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
+    comment = db.query(Comments).filter_by(id=comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
 
+    if existing:
+        db.delete(existing)
+        if comment.likes and comment.likes > 0:
+            comment.likes -= 1
+        db.commit()
+    else:
+        like = CommentLike(comment_id=comment_id, user_id=current_user.id)
+        db.add(like)
+        comment.likes = (comment.likes or 0) + 1
+        db.commit()
+
+    # Return the updated comment object
+    liked_by_current_user = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
+    return Comment(
+        id=comment.id,
+        comment=comment.comment,
+        post_id=comment.post_id,
+        parent_id=comment.parent_id,
+        user_id=comment.user_id,
+        username=comment.username,
+        liked_by_current_user=liked_by_current_user,
+        likes=comment.likes or 0
+    )
+
+@router.delete("/{comment_id}/like", response_model=Comment, status_code=200)
+def delete_like_comment(
+    comment_id: str,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    existing = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
+    comment = db.query(Comments).filter_by(id=comment_id).first()
+    if not comment:
+        raise HTTPException(status_code=404, detail="Comment not found")
+
+    if existing:
+        db.delete(existing)
+        if comment.likes and comment.likes > 0:
+            comment.likes -= 1
+        db.commit()
+    # After unlike (or if not previously liked), return the updated comment object
+    liked_by_current_user = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
+    return Comment(
+        id=comment.id,
+        comment=comment.comment,
+        post_id=comment.post_id,
+        parent_id=comment.parent_id,
+        user_id=comment.user_id,
+        username=comment.username,
+        liked_by_current_user=liked_by_current_user,
+        likes=comment.likes or 0
+    )

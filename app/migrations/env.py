@@ -12,6 +12,12 @@ from alembic import context
 
 from app.config.postgres_config import Base
 
+# Import all models for Alembic to detect them
+from app.routers.users.models import Users
+from app.routers.posts.models import Posts
+from app.routers.comments.models import Comments, CommentLike
+from app.routers.forums.models import Forums, ForumLike, ForumComment, ForumCommentLike
+
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

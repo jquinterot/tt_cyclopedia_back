@@ -1,10 +1,12 @@
 from typing import Optional
+from datetime import datetime
 from pydantic import BaseModel
 
 
 class CommentBase(BaseModel):
     comment: str
-    post_id: str
+    post_id: Optional[str] = None  # Optional for forum comments
+    forum_id: Optional[str] = None  # Optional for post comments
     parent_id: Optional[str] = None
 
 
@@ -22,4 +24,5 @@ class Comment(CommentBase):
     username: Optional[str] = None
     liked_by_current_user: Optional[bool] = False
     likes: Optional[int] = 0
+    timestamp: Optional[datetime] = None
 

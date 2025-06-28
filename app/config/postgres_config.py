@@ -15,10 +15,19 @@ engine = create_engine(
 
 Base = declarative_base()
 
-event.listen(
-    Base.metadata,
-    'before_create',
-    DDL("CREATE SCHEMA IF NOT EXISTS cyclopedia_owner")
-)
+# Only create schema for PostgreSQL, not SQLite (used in tests)
+if engine.dialect.name != "sqlite":
+    event.listen(
+        Base.metadata,
+        'before_create',
+        DDL("CREATE SCHEMA IF NOT EXISTS cyclopedia_owner")
+    )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()

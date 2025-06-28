@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from app.routers.comments.comments import router as comments_router
 from app.routers.posts.posts import router as posts_router
 from app.routers.users.users import router as users_router
+from app.routers.forums.forums import router as forums_router
 from fastapi.staticfiles import StaticFiles
 from app.routers.users.seeds import seed_default_admin
 
@@ -26,6 +27,7 @@ app.add_middleware(
 app.include_router(comments_router)
 app.include_router(posts_router)
 app.include_router(users_router)
+app.include_router(forums_router)
 
 # Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

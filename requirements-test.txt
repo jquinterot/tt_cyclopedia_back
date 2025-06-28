@@ -1,0 +1,29 @@
+# Test dependencies for the FastAPI application
+
+# Core testing framework
+pytest>=7.0.0
+pytest-cov>=4.0.0
+pytest-asyncio>=0.21.0
+
+# Additional testing utilities
+pytest-mock>=3.10.0
+pytest-xdist>=3.0.0  # For parallel test execution
+pytest-html>=3.1.0   # For HTML test reports
+
+# Coverage reporting
+coverage>=7.0.0
+
+# HTTP testing
+httpx>=0.24.0  # For async HTTP client testing
+
+# Database testing
+sqlalchemy-utils>=0.41.0  # For database utilities in tests
+
+# Mocking and faking
+factory-boy>=3.2.0  # For generating test data
+faker>=18.0.0       # For generating fake data
+
+# Development tools
+black>=23.0.0        # Code formatting
+flake8>=6.0.0        # Linting
+mypy>=1.0.0          # Type checking 

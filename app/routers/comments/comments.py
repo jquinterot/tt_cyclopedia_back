@@ -34,7 +34,8 @@ def get_comments(db: Session = Depends(get_db), current_user: Users = Depends(ge
             user_id=c.user_id,
             username=c.username,
             liked_by_current_user=c.id in liked_ids,
-            likes=c.likes or 0
+            likes=c.likes or 0,
+            timestamp=c.timestamp
         ))
     return result
 
@@ -46,7 +47,17 @@ def get_comment(item_id: str, db: Session = Depends(get_db)):
     if item_to_get is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource Not Found")
 
-    return item_to_get
+    return Comment(
+        id=item_to_get.id,
+        comment=item_to_get.comment,
+        post_id=item_to_get.post_id,
+        parent_id=item_to_get.parent_id,
+        user_id=item_to_get.user_id,
+        username=item_to_get.username,
+        liked_by_current_user=False,  # Will be set by frontend if needed
+        likes=item_to_get.likes or 0,
+        timestamp=item_to_get.timestamp
+    )
 
 
 @router.post("", response_model=Comment, status_code=status.HTTP_201_CREATED)
@@ -67,7 +78,17 @@ def post_comment(
     db.add(new_comment)
     db.commit()
     db.refresh(new_comment)
-    return new_comment
+    return Comment(
+        id=new_comment.id,
+        comment=new_comment.comment,
+        post_id=new_comment.post_id,
+        parent_id=new_comment.parent_id,
+        user_id=new_comment.user_id,
+        username=new_comment.username,
+        liked_by_current_user=False,
+        likes=new_comment.likes or 0,
+        timestamp=new_comment.timestamp
+    )
 
 
 @router.put("/{item_id}", response_model=Comment, status_code=status.HTTP_200_OK)
@@ -95,7 +116,8 @@ def update_comment(
         user_id=item_to_update.user_id,
         username=item_to_update.username,
         likes=item_to_update.likes or 0,
-        liked_by_current_user=liked_by_current_user
+        liked_by_current_user=liked_by_current_user,
+        timestamp=item_to_update.timestamp
     )
 
 
@@ -132,18 +154,57 @@ def delete_comment_with_replies(
 
 
 @router.get("/post/{post_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
+def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     comments = db.query(Comments).filter(Comments.post_id == post_id).all()
-
-    return comments
+    
+    # Get liked comment IDs for current user
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    
+    result = []
+    for comment in comments:
+        result.append(Comment(
+            id=comment.id,
+            comment=comment.comment,
+            post_id=comment.post_id,
+            parent_id=comment.parent_id,
+            user_id=comment.user_id,
+            username=comment.username,
+            liked_by_current_user=comment.id in liked_ids,
+            likes=comment.likes or 0,
+            timestamp=comment.timestamp
+        ))
+    
+    return result
 
 @router.get("/post/{post_id}/replies/{comment_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends(get_db)):
+def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     replies = db.query(Comments).filter(Comments.parent_id == comment_id).filter(Comments.post_id == post_id).all()
-    return replies
+    
+    # Get liked comment IDs for current user
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    
+    result = []
+    for reply in replies:
+        result.append(Comment(
+            id=reply.id,
+            comment=reply.comment,
+            post_id=reply.post_id,
+            parent_id=reply.parent_id,
+            user_id=reply.user_id,
+            username=reply.username,
+            liked_by_current_user=reply.id in liked_ids,
+            likes=reply.likes or 0,
+            timestamp=reply.timestamp
+        ))
+    
+    return result
 
 @router.get("/post/{post_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
+def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     # Query comments by post_id and where parent_id is None
     main_comments = (
         db.query(Comments)
@@ -154,7 +215,26 @@ def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
     if not main_comments:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No main comments found for this post")
 
-    return main_comments
+    # Get liked comment IDs for current user
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    
+    result = []
+    for comment in main_comments:
+        result.append(Comment(
+            id=comment.id,
+            comment=comment.comment,
+            post_id=comment.post_id,
+            parent_id=comment.parent_id,
+            user_id=comment.user_id,
+            username=comment.username,
+            liked_by_current_user=comment.id in liked_ids,
+            likes=comment.likes or 0,
+            timestamp=comment.timestamp
+        ))
+    
+    return result
 
 @router.post("/{comment_id}/like", response_model=Comment, status_code=200)
 def toggle_like_comment(
@@ -188,7 +268,8 @@ def toggle_like_comment(
         user_id=comment.user_id,
         username=comment.username,
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0
+        likes=comment.likes or 0,
+        timestamp=comment.timestamp
     )
 
 @router.delete("/{comment_id}/like", response_model=Comment, status_code=200)
@@ -217,5 +298,137 @@ def delete_like_comment(
         user_id=comment.user_id,
         username=comment.username,
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0
+        likes=comment.likes or 0,
+        timestamp=comment.timestamp
+    )
+
+# Forum Comment Endpoints (using the same Comments table)
+@router.get("/forum/{forum_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
+def get_forum_comments(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    """
+    Get all comments for a specific forum
+    """
+    comments = db.query(Comments).filter(Comments.forum_id == forum_id).all()
+    
+    # Get liked comment IDs for current user
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    
+    result = []
+    for comment in comments:
+        result.append(Comment(
+            id=comment.id,
+            comment=comment.comment,
+            forum_id=comment.forum_id,
+            post_id=comment.post_id,
+            parent_id=comment.parent_id,
+            user_id=comment.user_id,
+            username=comment.username,
+            liked_by_current_user=comment.id in liked_ids,
+            likes=comment.likes or 0,
+            timestamp=comment.timestamp
+        ))
+    
+    return result
+
+
+@router.get("/forum/{forum_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK)
+def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    """
+    Get main comments for a specific forum
+    """
+    main_comments = (
+        db.query(Comments)
+        .filter(Comments.forum_id == forum_id, Comments.parent_id == None)
+        .all()
+    )
+    
+    # Get liked comment IDs for current user
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    
+    result = []
+    for comment in main_comments:
+        result.append(Comment(
+            id=comment.id,
+            comment=comment.comment,
+            forum_id=comment.forum_id,
+            post_id=comment.post_id,
+            parent_id=comment.parent_id,
+            user_id=comment.user_id,
+            username=comment.username,
+            liked_by_current_user=comment.id in liked_ids,
+            likes=comment.likes or 0,
+            timestamp=comment.timestamp
+        ))
+    
+    return result
+
+
+@router.get("/forum/{forum_id}/replies/{comment_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
+def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    """
+    Get replies to a specific comment in a forum
+    """
+    replies = db.query(Comments).filter(Comments.parent_id == comment_id).filter(Comments.forum_id == forum_id).all()
+    
+    # Get liked comment IDs for current user
+    liked_ids = set(
+        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
+    )
+    
+    result = []
+    for reply in replies:
+        result.append(Comment(
+            id=reply.id,
+            comment=reply.comment,
+            forum_id=reply.forum_id,
+            post_id=reply.post_id,
+            parent_id=reply.parent_id,
+            user_id=reply.user_id,
+            username=reply.username,
+            liked_by_current_user=reply.id in liked_ids,
+            likes=reply.likes or 0,
+            timestamp=reply.timestamp
+        ))
+    
+    return result
+
+
+@router.post("/forum/{forum_id}", response_model=Comment, status_code=status.HTTP_201_CREATED)
+def create_forum_comment(
+    forum_id: str,
+    comment: CommentCreate,
+    current_user: Users = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Create a new comment on a forum
+    """
+    new_comment = Comments(
+        id=shortuuid.uuid(),
+        comment=comment.comment,
+        forum_id=forum_id,
+        post_id=comment.post_id,  # Will be None for forum comments
+        user_id=current_user.id,
+        username=current_user.username,
+        parent_id=comment.parent_id
+    )
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+    
+    return Comment(
+        id=new_comment.id,
+        comment=new_comment.comment,
+        forum_id=new_comment.forum_id,
+        post_id=new_comment.post_id,
+        parent_id=new_comment.parent_id,
+        user_id=new_comment.user_id,
+        username=new_comment.username,
+        liked_by_current_user=False,
+        likes=new_comment.likes or 0,
+        timestamp=new_comment.timestamp
     )

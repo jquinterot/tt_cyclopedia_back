@@ -106,7 +106,6 @@ async def create_post(
     try:
         image_url = DEFAULT_IMAGE_URL
 
-        # Parse stats string to dict
         stats_dict = None
         if stats:
             try:

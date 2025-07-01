@@ -6,10 +6,10 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      SQL_DB: ${{ secrets.SQL_DB }}
-      TEST_SQL_DB: ${{ secrets.TEST_SQL_DB }}
-      MONGO_DB: ${{ secrets.MONGO_DB }}
-      MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}
+      SQL_DB: "postgresql://postgres:postgres@db:5432/tt_cyclopedia"
+      TEST_SQL_DB: "sqlite:///:memory:"
+      MONGO_DB: "mongodb://mongo:27017"
+      MONGO_DB_NAME: tt_cyclopedia
 
     steps:
       - uses: actions/checkout@v4
@@ -25,6 +25,9 @@ jobs:
 
       - name: Install dependencies with Poetry
         run: poetry install
+
+      - name: Start services with Docker Compose
+        run: docker-compose up -d
 
       - name: Run unit tests
         run: poetry run pytest --maxfail=10 --disable-warnings -q

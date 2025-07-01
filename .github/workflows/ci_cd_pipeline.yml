@@ -5,6 +5,11 @@ on: push
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      SQL_DB: ${{ secrets.SQL_DB }}
+      TEST_SQL_DB: ${{ secrets.TEST_SQL_DB }}
+      MONGO_DB: ${{ secrets.MONGO_DB }}
+      MONGO_DB_NAME: ${{ secrets.MONGO_DB_NAME }}
 
     steps:
       - uses: actions/checkout@v4

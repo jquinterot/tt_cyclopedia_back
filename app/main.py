@@ -7,6 +7,8 @@ from app.routers.users.users import router as users_router
 from app.routers.forums.forums import router as forums_router
 from fastapi.staticfiles import StaticFiles
 from app.routers.users.seeds import seed_default_admin
+from app.middleware.log_to_mongo import MongoLoggingMiddleware
+from app.routers.logs.logs import router as logs_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -23,11 +25,14 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
+app.add_middleware(MongoLoggingMiddleware)
+
 # Routers
 app.include_router(comments_router)
 app.include_router(posts_router)
 app.include_router(users_router)
 app.include_router(forums_router)
+app.include_router(logs_router)
 
 # Static files
 app.mount("/static", StaticFiles(directory="static"), name="static")

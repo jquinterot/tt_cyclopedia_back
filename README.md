@@ -1,15 +1,22 @@
-commands:
-run app:
+# TT Cyclopedia Backend
+
+## Commands
+
+**Run app:**
+```bash
 poetry run start_app
+```
 
-if any dependency is changed:
+**If any dependency is changed:**
+```bash
 poetry lock --no-update
-
-after that:
 poetry install
+```
 
-docs url:
-http://127.0.0.1:8000/docs
-
-run tests:
+**Run tests:**
+```bash
 pytest
+```
+
+**Docs URL:**
+http://127.0.0.1:8000/docs

@@ -5,6 +5,8 @@ import os
 
 load_dotenv()
 postgres_db = os.getenv("SQL_DB")
+if not postgres_db:
+    raise ValueError("SQL_DB environment variable must be set")
 
 engine = create_engine(
     postgres_db,
@@ -31,3 +33,20 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def is_sqlite():
+    """Check if we're using SQLite database"""
+    db_url = os.getenv("SQL_DB", "")
+    return "sqlite" in db_url.lower()
+
+def get_schema_kwargs():
+    """Get schema kwargs based on database type"""
+    if is_sqlite():
+        return {}
+    return {"schema": "cyclopedia_owner"}
+
+def get_fk_reference(table_name):
+    """Get foreign key reference with proper schema"""
+    if is_sqlite():
+        return f"{table_name}.id"
+    return f"cyclopedia_owner.{table_name}.id"

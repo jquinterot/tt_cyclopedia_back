@@ -212,8 +212,9 @@ def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db), cu
         .all()
     )
 
+    # Return empty list if no comments found instead of throwing an error
     if not main_comments:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No main comments found for this post")
+        return []
 
     # Get liked comment IDs for current user
     liked_ids = set(
@@ -253,7 +254,11 @@ def toggle_like_comment(
             comment.likes -= 1
         db.commit()
     else:
-        like = CommentLike(comment_id=comment_id, user_id=current_user.id)
+        like = CommentLike(
+            id=shortuuid.uuid(),
+            comment_id=comment_id, 
+            user_id=current_user.id
+        )
         db.add(like)
         comment.likes = (comment.likes or 0) + 1
         db.commit()

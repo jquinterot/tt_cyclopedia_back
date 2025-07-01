@@ -22,6 +22,9 @@ class PostBase(BaseModel):
                     raise ValueError(f"Stat '{key}' must be between 5 and 10 (got {value})")
         return v
 
+    class Config:
+        orm_mode = True
+
 
 class PostCreate(PostBase):
     pass
@@ -29,5 +32,4 @@ class PostCreate(PostBase):
 
 class PostResponse(PostBase):
     id: str
-    likes: int
     likedByCurrentUser: bool

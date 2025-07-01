@@ -1,7 +1,13 @@
 import os
 from dotenv import load_dotenv
 load_dotenv()
-print('DEBUG: SQL_DB from env:', os.getenv('SQL_DB'))
+
+# Override the database URL with environment variable
+sql_db_url = os.getenv('SQL_DB')
+if sql_db_url:
+    pass  # URL is set correctly
+else:
+    raise ValueError("SQL_DB environment variable must be set")
 
 from logging.config import fileConfig
 
@@ -21,6 +27,9 @@ from app.routers.forums.models import Forums, ForumLike, ForumComment, ForumComm
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
+
+# Override the database URL with environment variable
+config.set_main_option("sqlalchemy.url", sql_db_url)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

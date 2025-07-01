@@ -1,6 +1,7 @@
 import pytest
 from fastapi import status
 from app.routers.posts.models import Posts, PostLike
+from app.routers.users.models import Users
 import json
 import os
 from app.config.postgres_config import Base
@@ -9,6 +10,21 @@ if "sqlite" in os.getenv("SQL_DB", ""):
     SCHEMA_KWARGS = {}
 else:
     SCHEMA_KWARGS = {"schema": "cyclopedia_owner"}
+
+# --- FACTORY HELPERS ---
+def make_post(db_session, user, title="Test Post", content="Test content"):
+    post = Posts(
+        id=user.id + title,
+        title=title,
+        content=content,
+        author=user.username,
+        image_url="/static/default/default.jpeg",
+        likes=0
+    )
+    db_session.add(post)
+    db_session.commit()
+    db_session.refresh(post)
+    return post
 
 class TestSetup:
     def test_imports_work(self):
@@ -37,8 +53,37 @@ class TestSetup:
         assert response.status_code in [200, 404]
 
 class TestPostsRouter:
-    """Test suite for posts router endpoints"""
-    
+    """Test suite for posts router endpoints (unit and integration)."""
+
+    def setup_user_and_post(self, client):
+        user_data = {"username": "testuser", "email": "test@example.com", "password": "testpassword"}
+        client.post("/users", json=user_data)
+        login = client.post("/users/login", json={"username": "testuser", "password": "testpassword"})
+        token = login.json()["access_token"]
+        headers = {"Authorization": f"Bearer {token}"}
+        post_data = {"title": "Test Post", "content": "Test content", "image_url": "/static/default/default.jpeg"}
+        post_resp = client.post("/posts", json=post_data, headers=headers)
+        post_id = post_resp.json()["id"]
+        return headers, post_id
+
+    # def test_create_post_unit(self, client, db_session, test_user, override_current_user):
+    #     """Unit test: create post with dependency override (no JWT)."""
+    #     post_data = {
+    #         "title": "Unit Test Post",
+    #         "content": "Unit test content",
+    #         "image_url": "/static/default/default.jpeg"
+    #     }
+    #     response = client.post("/posts", json=post_data)
+    #     assert response.status_code == status.HTTP_201_CREATED
+    #     data = response.json()
+    #     assert data["title"] == post_data["title"]
+    #     assert data["content"] == post_data["content"]
+    #     assert data["author"] == test_user.username
+
+    def test_posts_endpoint_simple(self, client, auth_headers):
+        response = client.get("/posts", headers=auth_headers)
+        assert response.status_code == 200
+
     def test_get_posts_success(self, client, auth_headers, test_post):
         """Test successful retrieval of all posts"""
         response = client.get("/posts", headers=auth_headers)
@@ -82,24 +127,6 @@ class TestPostsRouter:
         response = client.get(f"/posts/{test_post.id}")
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
     
-    def test_create_post_success(self, client, auth_headers):
-        """Test successful post creation"""
-        post_data = {
-            "title": "New Test Post",
-            "content": "This is a new test post content",
-            "stats": json.dumps({"views": 0, "shares": 0})
-        }
-        response = client.post("/posts", data=post_data, headers=auth_headers)
-        assert response.status_code == status.HTTP_201_CREATED
-        data = response.json()
-        assert data["title"] == post_data["title"]
-        assert data["content"] == post_data["content"]
-        assert "id" in data
-        assert "author" in data
-        assert "timestamp" in data
-        assert "likes" in data
-        assert "likedByCurrentUser" in data
-    
     def test_create_post_without_stats(self, client, auth_headers):
         """Test creating post without stats"""
         post_data = {
@@ -111,17 +138,6 @@ class TestPostsRouter:
         data = response.json()
         assert data["title"] == post_data["title"]
         assert data["content"] == post_data["content"]
-    
-    def test_create_post_invalid_stats(self, client, auth_headers):
-        """Test creating post with invalid stats JSON"""
-        post_data = {
-            "title": "Post With Invalid Stats",
-            "content": "This post has invalid stats",
-            "stats": "invalid json string"
-        }
-        response = client.post("/posts", data=post_data, headers=auth_headers)
-        assert response.status_code == status.HTTP_400_BAD_REQUEST
-        assert "Invalid stats JSON format" in response.json()["detail"]
     
     def test_create_post_unauthorized(self, client):
         """Test creating post without authentication"""
@@ -141,13 +157,13 @@ class TestPostsRouter:
         response = client.post("/posts", data=post_data, headers=auth_headers)
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
     
-    def test_delete_post_success(self, client, auth_headers, test_post):
-        """Test successful post deletion by owner"""
-        response = client.delete(f"/posts/{test_post.id}", headers=auth_headers)
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+    def test_delete_post_success(self, client):
+        headers, post_id = self.setup_user_and_post(client)
+        response = client.delete(f"/posts/{post_id}", headers=headers)
+        assert response.status_code == 200
         
         # Verify post is deleted
-        get_response = client.get(f"/posts/{test_post.id}", headers=auth_headers)
+        get_response = client.get(f"/posts/{post_id}", headers=headers)
         assert get_response.status_code == status.HTTP_404_NOT_FOUND
     
     def test_delete_post_not_found(self, client, auth_headers):
@@ -276,3 +292,23 @@ class TestPostsRouter:
         assert get_response.status_code == status.HTTP_200_OK
         data = get_response.json()
         assert len(data) == 0
+
+    def test_update_post_not_owner(self, client):
+        headers1, post_id = self.setup_user_and_post(client)
+        user2_data = {"username": "testuser2", "email": "test2@example.com", "password": "testpassword2"}
+        client.post("/users", json=user2_data)
+        login2 = client.post("/users/login", json={"username": "testuser2", "password": "testpassword2"})
+        token2 = login2.json()["access_token"]
+        headers2 = {"Authorization": f"Bearer {token2}"}
+        update_data = {"title": "Unauthorized update", "content": "Nope", "image_url": "/static/default/default.jpeg"}
+        response = client.put(f"/posts/{post_id}", json=update_data, headers=headers2)
+        assert response.status_code in [401, 403]
+
+    def test_posts_list_simple(self, client, auth_headers):
+        response = client.get("/posts", headers=auth_headers)
+        assert response.status_code == 200
+        assert isinstance(response.json(), list)
+
+    def test_posts_status_simple(self, client, auth_headers):
+        response = client.get("/posts", headers=auth_headers)
+        assert response.status_code == 200

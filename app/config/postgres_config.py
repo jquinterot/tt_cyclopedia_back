@@ -35,18 +35,18 @@ def get_db():
         db.close()
 
 def is_sqlite():
-    """Check if we're using SQLite database"""
-    db_url = os.getenv("SQL_DB", "")
+    """Check if we're using SQLite database (for tests, check both SQL_DB and TEST_SQL_DB)"""
+    db_url = os.getenv("TEST_SQL_DB") or os.getenv("SQL_DB", "")
     return "sqlite" in db_url.lower()
 
 def get_schema_kwargs():
-    """Get schema kwargs based on database type"""
+    """Get schema kwargs based on database type (never set schema for SQLite or if TEST_SQL_DB is set)"""
     if is_sqlite():
         return {}
     return {"schema": "cyclopedia_owner"}
 
 def get_fk_reference(table_name):
-    """Get foreign key reference with proper schema"""
+    """Get foreign key reference with proper schema (never set schema for SQLite or if TEST_SQL_DB is set)"""
     if is_sqlite():
         return f"{table_name}.id"
     return f"cyclopedia_owner.{table_name}.id"

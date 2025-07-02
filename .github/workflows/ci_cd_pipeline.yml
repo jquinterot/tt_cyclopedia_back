@@ -35,16 +35,29 @@ jobs:
       - name: Start services with Docker Compose
         run: docker-compose up -d
 
+      - name: Show running containers (before wait)
+        run: docker ps -a
+      - name: Show Postgres logs (before wait)
+        run: |
+          docker logs $(docker ps -qf "name=db") || echo "No db logs yet"
       - name: Wait for Postgres to be ready
         run: |
           for i in {1..40}; do
             if pg_isready -h localhost -p 5432 -U postgres; then
               echo "Postgres is ready!"
-              break
+              exit 0
             fi
             echo "Waiting for Postgres... ($i/40)"
             sleep 5
           done
+          echo "Postgres did not become ready in time"
+          docker logs $(docker ps -qf "name=db")
+          exit 1
+      - name: Show running containers (after wait)
+        run: docker ps -a
+      - name: Show Postgres logs (after wait)
+        run: |
+          docker logs $(docker ps -qf "name=db") || echo "No db logs yet"
 
       - name: Run unit tests
         run: poetry run pytest --maxfail=10 --disable-warnings -q

@@ -6,13 +6,11 @@ from app.routers.posts.posts import router as posts_router
 from app.routers.users.users import router as users_router
 from app.routers.forums.forums import router as forums_router
 from fastapi.staticfiles import StaticFiles
-from app.routers.users.seeds import seed_default_admin
 from app.middleware.log_to_mongo import MongoLoggingMiddleware
 from app.routers.logs.logs import router as logs_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await seed_default_admin()
     yield
 
 app = FastAPI(lifespan=lifespan)

@@ -1,7 +1,7 @@
 """Add stats column to posts
 
 Revision ID: a4b6e607df90
-Revises: 
+Revises: 0001_create_schema
 Create Date: 2025-06-27 00:48:54.125301
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'a4b6e607df90'
-down_revision: Union[str, None] = None
+down_revision: Union[str, None] = '0001_create_schema'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

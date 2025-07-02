@@ -6,7 +6,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      SQL_DB: "postgresql://postgres:postgres@localhost:5432/tt_cyclopedia"
+      SQL_DB: "postgresql://postgres:postgres@db:5432/tt_cyclopedia"
       TEST_SQL_DB: "sqlite:///:memory:"
       MONGO_DB: "mongodb://localhost:27017"
       MONGO_DB_NAME: tt_cyclopedia

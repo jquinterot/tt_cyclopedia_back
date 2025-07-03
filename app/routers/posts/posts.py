@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form, Response, Query
+from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form, Response, Query, Request
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
@@ -31,15 +31,12 @@ class Config:
 @router.get("", response_model=List[PostResponse], status_code=status.HTTP_200_OK)
 def get_posts(
     search: Optional[str] = Query(None, description="Search posts by title or content"),
-    db: Session = Depends(get_db), 
-    current_user: Users = Depends(get_current_user)
+    db: Session = Depends(get_db)
 ):
     """
     Get all posts with optional search functionality
     """
     query = db.query(Posts)
-    
-    # Apply search filter if provided
     if search:
         search_term = f"%{search}%"
         query = query.filter(
@@ -49,14 +46,11 @@ def get_posts(
                 Posts.author.ilike(search_term)
             )
         )
-    
     posts = query.all()
     result = []
     for post in posts:
         likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
-        liked = False
-        if current_user:
-            liked = db.query(PostLike).filter_by(post_id=post.id, user_id=current_user.id).first() is not None
+        # likedByCurrentUser is always False for unauthenticated
         result.append(PostResponse(
             id=post.id,
             title=post.title,
@@ -66,20 +60,23 @@ def get_posts(
             author=post.author,
             timestamp=post.timestamp,
             stats=post.stats,
-            likedByCurrentUser=liked
+            likedByCurrentUser=False
         ))
     return result
 
 
 @router.get("/{post_id}", response_model=PostResponse, status_code=status.HTTP_200_OK)
-def get_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_post(post_id: str, request: Request, db: Session = Depends(get_db)):
     post = db.query(Posts).filter(Posts.id == post_id).first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
     likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
     liked = False
-    if current_user:
-        liked = db.query(PostLike).filter_by(post_id=post.id, user_id=current_user.id).first() is not None
+    user = None
+    if hasattr(request, 'state') and hasattr(request.state, 'user'):
+        user = request.state.user
+    if user and hasattr(user, 'id'):
+        liked = db.query(PostLike).filter_by(post_id=post.id, user_id=user.id).first() is not None
     return PostResponse(
         id=post.id,
         title=post.title,

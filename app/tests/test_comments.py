@@ -170,11 +170,6 @@ class TestCommentsRouter:
         print("INVALID DATA RESPONSE:", response.status_code, response.json())
         assert response.status_code in [201, 422]
 
-    def test_get_comments_unauthorized(self, client):
-        """Integration test: get comments without authentication (should be 401 or 403)."""
-        response = client.get("/comments")
-        assert response.status_code in [status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
-
     def test_create_comment_integration(self, client):
         headers, user_id, post_id = self.setup_user_and_post(client)
         comment_data = {
@@ -414,3 +409,8 @@ class TestCommentsRouter:
         assert response.status_code in [200, 404]
         if response.status_code == 200:
             assert len(response.json()) == 1
+
+    def test_get_comments_public(self, client):
+        """Test getting comments without authentication (should be public)"""
+        response = client.get("/comments")
+        assert response.status_code == 200

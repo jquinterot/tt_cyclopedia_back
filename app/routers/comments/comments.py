@@ -19,11 +19,8 @@ class Config:
 
 
 @router.get("", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_comments(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_comments(db: Session = Depends(get_db)):
     comments = db.query(Comments).all()
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
     result = []
     for c in comments:
         result.append(Comment(
@@ -33,7 +30,7 @@ def get_comments(db: Session = Depends(get_db), current_user: Users = Depends(ge
             parent_id=c.parent_id,
             user_id=c.user_id,
             username=c.username,
-            liked_by_current_user=c.id in liked_ids,
+            liked_by_current_user=False,
             likes=c.likes or 0,
             timestamp=c.timestamp
         ))
@@ -154,14 +151,8 @@ def delete_comment_with_replies(
 
 
 @router.get("/post/{post_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
     comments = db.query(Comments).filter(Comments.post_id == post_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
-    
     result = []
     for comment in comments:
         result.append(Comment(
@@ -171,22 +162,15 @@ def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db), current
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
-    
     return result
 
 @router.get("/post/{post_id}/replies/{comment_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends(get_db)):
     replies = db.query(Comments).filter(Comments.parent_id == comment_id).filter(Comments.post_id == post_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
-    
     result = []
     for reply in replies:
         result.append(Comment(
@@ -196,31 +180,21 @@ def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends
             parent_id=reply.parent_id,
             user_id=reply.user_id,
             username=reply.username,
-            liked_by_current_user=reply.id in liked_ids,
+            liked_by_current_user=False,
             likes=reply.likes or 0,
             timestamp=reply.timestamp
         ))
-    
     return result
 
 @router.get("/post/{post_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
-    # Query comments by post_id and where parent_id is None
+def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
     main_comments = (
         db.query(Comments)
         .filter(Comments.post_id == post_id, Comments.parent_id == None)
         .all()
     )
-
-    # Return empty list if no comments found instead of throwing an error
     if not main_comments:
         return []
-
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
-    
     result = []
     for comment in main_comments:
         result.append(Comment(
@@ -230,11 +204,10 @@ def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db), cu
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
-    
     return result
 
 @router.post("/{comment_id}/like", response_model=Comment, status_code=200)
@@ -309,17 +282,8 @@ def delete_like_comment(
 
 # Forum Comment Endpoints (using the same Comments table)
 @router.get("/forum/{forum_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_forum_comments(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
-    """
-    Get all comments for a specific forum
-    """
+def get_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     comments = db.query(Comments).filter(Comments.forum_id == forum_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
-    
     result = []
     for comment in comments:
         result.append(Comment(
@@ -330,30 +294,20 @@ def get_forum_comments(forum_id: str, db: Session = Depends(get_db), current_use
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
-    
     return result
 
 
 @router.get("/forum/{forum_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
-    """
-    Get main comments for a specific forum
-    """
+def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     main_comments = (
         db.query(Comments)
         .filter(Comments.forum_id == forum_id, Comments.parent_id == None)
         .all()
     )
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
-    
     result = []
     for comment in main_comments:
         result.append(Comment(
@@ -364,26 +318,16 @@ def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db), curren
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
-    
     return result
 
 
 @router.get("/forum/{forum_id}/replies/{comment_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
-def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
-    """
-    Get replies to a specific comment in a forum
-    """
+def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = Depends(get_db)):
     replies = db.query(Comments).filter(Comments.parent_id == comment_id).filter(Comments.forum_id == forum_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(CommentLike).filter_by(user_id=current_user.id).all()
-    )
-    
     result = []
     for reply in replies:
         result.append(Comment(
@@ -394,11 +338,10 @@ def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = 
             parent_id=reply.parent_id,
             user_id=reply.user_id,
             username=reply.username,
-            liked_by_current_user=reply.id in liked_ids,
+            liked_by_current_user=False,
             likes=reply.likes or 0,
             timestamp=reply.timestamp
         ))
-    
     return result
 
 

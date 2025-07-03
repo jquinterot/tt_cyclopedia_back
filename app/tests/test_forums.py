@@ -72,11 +72,6 @@ class TestForumsRouter:
         assert "timestamp" in data[0]
         assert "updated_timestamp" in data[0]
     
-    def test_get_all_forums_unauthorized(self, client):
-        """Test getting forums without authentication"""
-        response = client.get("/forums")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-    
     def test_get_forum_by_id_success(self, client, auth_headers, test_forum):
         """Test successful retrieval of a specific forum by ID"""
         response = client.get(f"/forums/{test_forum.id}", headers=auth_headers)
@@ -97,11 +92,6 @@ class TestForumsRouter:
         response = client.get(f"/forums/{fake_id}", headers=auth_headers)
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == "Forum not found"
-    
-    def test_get_forum_by_id_unauthorized(self, client, test_forum):
-        """Test getting forum by ID without authentication"""
-        response = client.get(f"/forums/{test_forum.id}")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
     
     def test_create_forum_unit(self, client, db_session, test_user, override_current_user):
         """Unit test: create forum with dependency override (no JWT)."""
@@ -312,6 +302,7 @@ class TestForumsRouter:
         """Test creating a reply to a forum comment"""
         reply_data = {
             "comment": "Reply to forum comment",
+            "forum_id": test_forum.id,
             "parent_id": test_forum_comment.id
         }
         response = client.post(f"/forums/{test_forum.id}/comments", json=reply_data, headers=auth_headers)
@@ -398,3 +389,13 @@ class TestForumsRouter:
         response = client.get("/forums", headers=auth_headers)
         assert response.status_code == 200
         assert isinstance(response.json(), list) 
+
+    def test_get_all_forums_public(self, client):
+        """Test getting all forums without authentication (should be public)"""
+        response = client.get("/forums")
+        assert response.status_code == 200
+
+    def test_get_forum_by_id_public(self, client, test_forum):
+        """Test getting forum by ID without authentication (should be public)"""
+        response = client.get(f"/forums/{test_forum.id}")
+        assert response.status_code == 200 

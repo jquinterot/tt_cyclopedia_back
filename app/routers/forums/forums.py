@@ -21,14 +21,11 @@ def get_db():
 
 
 @router.get("", response_model=List[ForumResponse], status_code=status.HTTP_200_OK)
-def get_all_forums(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_all_forums(db: Session = Depends(get_db)):
     """
     Get all forums - Public endpoint, no authentication required
     """
     forums = db.query(Forums).all()
-    liked_ids = set(
-        r.forum_id for r in db.query(ForumLike).filter_by(user_id=current_user.id).all()
-    )
     result = []
     for f in forums:
         result.append(ForumResponse(
@@ -39,13 +36,13 @@ def get_all_forums(db: Session = Depends(get_db), current_user: Users = Depends(
             likes=f.likes or 0,
             timestamp=f.timestamp,
             updated_timestamp=f.updated_timestamp,
-            liked_by_current_user=f.id in liked_ids
+            liked_by_current_user=False
         ))
     return result
 
 
 @router.get("/{forum_id}", response_model=ForumResponse, status_code=status.HTTP_200_OK)
-def get_forum_by_id(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_forum_by_id(forum_id: str, db: Session = Depends(get_db)):
     """
     Get a specific forum by ID - Public endpoint, no authentication required
     """
@@ -57,8 +54,6 @@ def get_forum_by_id(forum_id: str, db: Session = Depends(get_db), current_user: 
             detail="Forum not found"
         )
     
-    liked_by_current_user = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
-    
     return ForumResponse(
         id=forum.id,
         title=forum.title,
@@ -67,7 +62,7 @@ def get_forum_by_id(forum_id: str, db: Session = Depends(get_db), current_user: 
         likes=forum.likes or 0,
         timestamp=forum.timestamp,
         updated_timestamp=forum.updated_timestamp,
-        liked_by_current_user=liked_by_current_user
+        liked_by_current_user=False
     )
 
 
@@ -255,11 +250,8 @@ def delete_like_forum(
 
 # Forum Comments Endpoints
 @router.get("/{forum_id}/comments", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_forum_comments(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     comments = db.query(ForumCommentModel).filter(ForumCommentModel.forum_id == forum_id).all()
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
-    )
     result = []
     for c in comments:
         result.append(ForumComment(
@@ -269,7 +261,7 @@ def get_forum_comments(forum_id: str, db: Session = Depends(get_db), current_use
             parent_id=c.parent_id,
             user_id=c.user_id,
             username=c.username,
-            liked_by_current_user=c.id in liked_ids,
+            liked_by_current_user=False,
             likes=c.likes or 0,
             timestamp=c.timestamp
         ))
@@ -277,16 +269,11 @@ def get_forum_comments(forum_id: str, db: Session = Depends(get_db), current_use
 
 
 @router.get("/{forum_id}/comments/main", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     main_comments = (
         db.query(ForumCommentModel)
         .filter(ForumCommentModel.forum_id == forum_id, ForumCommentModel.parent_id == None)
         .all()
-    )
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
     )
     
     result = []
@@ -298,7 +285,7 @@ def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db), curren
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
@@ -307,13 +294,8 @@ def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db), curren
 
 
 @router.get("/{forum_id}/comments/replies/{comment_id}", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = Depends(get_db)):
     replies = db.query(ForumCommentModel).filter(ForumCommentModel.parent_id == comment_id).filter(ForumCommentModel.forum_id == forum_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
-    )
     
     result = []
     for reply in replies:
@@ -324,7 +306,7 @@ def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = 
             parent_id=reply.parent_id,
             user_id=reply.user_id,
             username=reply.username,
-            liked_by_current_user=reply.id in liked_ids,
+            liked_by_current_user=False,
             likes=reply.likes or 0,
             timestamp=reply.timestamp
         ))
@@ -488,14 +470,11 @@ def delete_like_forum_comment(
 
 # General forum comment endpoints (mimicking post comments behavior)
 @router.get("/comments", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_all_forum_comments(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_all_forum_comments(db: Session = Depends(get_db)):
     """
     Get all forum comments - mimics post comments behavior
     """
     comments = db.query(ForumCommentModel).all()
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
-    )
     result = []
     for c in comments:
         result.append(ForumComment(
@@ -505,7 +484,7 @@ def get_all_forum_comments(db: Session = Depends(get_db), current_user: Users = 
             parent_id=c.parent_id,
             user_id=c.user_id,
             username=c.username,
-            liked_by_current_user=c.id in liked_ids,
+            liked_by_current_user=False,
             likes=c.likes or 0,
             timestamp=c.timestamp
         ))
@@ -700,16 +679,11 @@ def delete_like_forum_comment_general(
 
 # Forum-specific comment endpoints (mimicking post comments behavior)
 @router.get("/forum/{forum_id}/comments", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db)):
     """
     Get all comments for a specific forum - mimics post comments behavior
     """
     comments = db.query(ForumCommentModel).filter(ForumCommentModel.forum_id == forum_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
-    )
     
     result = []
     for comment in comments:
@@ -720,7 +694,7 @@ def get_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db),
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
@@ -729,7 +703,7 @@ def get_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db),
 
 
 @router.get("/forum/{forum_id}/comments/main", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_main_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_main_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db)):
     """
     Get main comments for a specific forum - mimics post comments behavior
     """
@@ -737,11 +711,6 @@ def get_main_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get
         db.query(ForumCommentModel)
         .filter(ForumCommentModel.forum_id == forum_id, ForumCommentModel.parent_id == None)
         .all()
-    )
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
     )
     
     result = []
@@ -753,7 +722,7 @@ def get_main_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get
             parent_id=comment.parent_id,
             user_id=comment.user_id,
             username=comment.username,
-            liked_by_current_user=comment.id in liked_ids,
+            liked_by_current_user=False,
             likes=comment.likes or 0,
             timestamp=comment.timestamp
         ))
@@ -762,16 +731,11 @@ def get_main_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get
 
 
 @router.get("/forum/{forum_id}/comments/replies/{comment_id}", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
-def get_forum_comments_replied_to_by_forum_id(comment_id: str, forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+def get_forum_comments_replied_to_by_forum_id(comment_id: str, forum_id: str, db: Session = Depends(get_db)):
     """
     Get replies to a specific comment in a forum - mimics post comments behavior
     """
     replies = db.query(ForumCommentModel).filter(ForumCommentModel.parent_id == comment_id).filter(ForumCommentModel.forum_id == forum_id).all()
-    
-    # Get liked comment IDs for current user
-    liked_ids = set(
-        r.comment_id for r in db.query(ForumCommentLike).filter_by(user_id=current_user.id).all()
-    )
     
     result = []
     for reply in replies:
@@ -782,7 +746,7 @@ def get_forum_comments_replied_to_by_forum_id(comment_id: str, forum_id: str, db
             parent_id=reply.parent_id,
             user_id=reply.user_id,
             username=reply.username,
-            liked_by_current_user=reply.id in liked_ids,
+            liked_by_current_user=False,
             likes=reply.likes or 0,
             timestamp=reply.timestamp
         ))

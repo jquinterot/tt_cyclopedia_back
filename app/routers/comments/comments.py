@@ -24,15 +24,15 @@ def get_comments(db: Session = Depends(get_db)):
     result = []
     for c in comments:
         result.append(Comment(
-            id=c.id,
-            comment=c.comment,
-            post_id=c.post_id,
-            parent_id=c.parent_id,
-            user_id=c.user_id,
-            username=c.username,
+            id=str(c.id),
+            comment=str(c.comment),
+            post_id=str(c.post_id),
+            parent_id=c.parent_id,  # type: ignore
+            user_id=c.user_id,  # type: ignore
+            username=c.username,  # type: ignore
             liked_by_current_user=False,
-            likes=c.likes or 0,
-            timestamp=c.timestamp
+            likes=c.likes or 0,  # type: ignore
+            timestamp=c.timestamp  # type: ignore
         ))
     return result
 
@@ -45,15 +45,15 @@ def get_comment(item_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource Not Found")
 
     return Comment(
-        id=item_to_get.id,
-        comment=item_to_get.comment,
-        post_id=item_to_get.post_id,
-        parent_id=item_to_get.parent_id,
-        user_id=item_to_get.user_id,
-        username=item_to_get.username,
+        id=str(item_to_get.id),
+        comment=str(item_to_get.comment),
+        post_id=str(item_to_get.post_id),
+        parent_id=item_to_get.parent_id,  # type: ignore
+        user_id=item_to_get.user_id,  # type: ignore
+        username=item_to_get.username,  # type: ignore
         liked_by_current_user=False,  # Will be set by frontend if needed
-        likes=item_to_get.likes or 0,
-        timestamp=item_to_get.timestamp
+        likes=item_to_get.likes or 0,  # type: ignore
+        timestamp=item_to_get.timestamp  # type: ignore
     )
 
 
@@ -76,15 +76,15 @@ def post_comment(
     db.commit()
     db.refresh(new_comment)
     return Comment(
-        id=new_comment.id,
-        comment=new_comment.comment,
-        post_id=new_comment.post_id,
-        parent_id=new_comment.parent_id,
-        user_id=new_comment.user_id,
-        username=new_comment.username,
+        id=str(new_comment.id),
+        comment=str(new_comment.comment),
+        post_id=str(new_comment.post_id),
+        parent_id=new_comment.parent_id,  # type: ignore
+        user_id=new_comment.user_id,  # type: ignore
+        username=new_comment.username,  # type: ignore
         liked_by_current_user=False,
-        likes=new_comment.likes or 0,
-        timestamp=new_comment.timestamp
+        likes=new_comment.likes or 0,  # type: ignore
+        timestamp=new_comment.timestamp  # type: ignore
     )
 
 
@@ -98,23 +98,23 @@ def update_comment(
     item_to_update = db.query(Comments).filter(Comments.id == item_id).first()
     if item_to_update is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource Not Found")
-    if item_to_update.user_id != current_user.id:
+    if item_to_update.user_id != current_user.id:  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only edit your own comments")
-    item_to_update.comment = updated_comment.comment
+    item_to_update.comment = updated_comment.comment  # type: ignore
     db.commit()
     liked_by_current_user = db.query(CommentLike).filter_by(
         comment_id=item_to_update.id, user_id=current_user.id
     ).first() is not None
     return Comment(
-        id=item_to_update.id,
-        comment=item_to_update.comment,
-        post_id=item_to_update.post_id,
-        parent_id=item_to_update.parent_id,
-        user_id=item_to_update.user_id,
-        username=item_to_update.username,
-        likes=item_to_update.likes or 0,
+        id=str(item_to_update.id),
+        comment=str(item_to_update.comment),
+        post_id=str(item_to_update.post_id),
+        parent_id=item_to_update.parent_id,  # type: ignore
+        user_id=item_to_update.user_id,  # type: ignore
+        username=item_to_update.username,  # type: ignore
+        likes=item_to_update.likes or 0,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        timestamp=item_to_update.timestamp
+        timestamp=item_to_update.timestamp  # type: ignore
     )
 
 
@@ -131,7 +131,7 @@ def delete_comment_with_replies(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
 
     # Check if the user owns this comment
-    if comment_to_delete.user_id != current_user.id:
+    if comment_to_delete.user_id != current_user.id:  # type: ignore
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, 
             detail="You can only delete your own comments"
@@ -156,15 +156,15 @@ def get_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
     result = []
     for comment in comments:
         result.append(Comment(
-            id=comment.id,
-            comment=comment.comment,
-            post_id=comment.post_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            post_id=str(comment.post_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     return result
 
@@ -174,15 +174,15 @@ def get_comments_replied_to(comment_id: str, post_id:str,  db: Session = Depends
     result = []
     for reply in replies:
         result.append(Comment(
-            id=reply.id,
-            comment=reply.comment,
-            post_id=reply.post_id,
-            parent_id=reply.parent_id,
-            user_id=reply.user_id,
-            username=reply.username,
+            id=str(reply.id),
+            comment=str(reply.comment),
+            post_id=str(reply.post_id),
+            parent_id=reply.parent_id,  # type: ignore
+            user_id=reply.user_id,  # type: ignore
+            username=reply.username,  # type: ignore
             liked_by_current_user=False,
-            likes=reply.likes or 0,
-            timestamp=reply.timestamp
+            likes=reply.likes or 0,  # type: ignore
+            timestamp=reply.timestamp  # type: ignore
         ))
     return result
 
@@ -198,15 +198,15 @@ def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
     result = []
     for comment in main_comments:
         result.append(Comment(
-            id=comment.id,
-            comment=comment.comment,
-            post_id=comment.post_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            post_id=str(comment.post_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     return result
 
@@ -223,8 +223,8 @@ def toggle_like_comment(
 
     if existing:
         db.delete(existing)
-        if comment.likes and comment.likes > 0:
-            comment.likes -= 1
+        if comment.likes and comment.likes > 0:  # type: ignore
+            comment.likes -= 1  # type: ignore
         db.commit()
     else:
         like = CommentLike(
@@ -233,21 +233,21 @@ def toggle_like_comment(
             user_id=current_user.id
         )
         db.add(like)
-        comment.likes = (comment.likes or 0) + 1
+        comment.likes = (comment.likes or 0) + 1  # type: ignore
         db.commit()
 
     # Return the updated comment object
     liked_by_current_user = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return Comment(
-        id=comment.id,
-        comment=comment.comment,
-        post_id=comment.post_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        post_id=str(comment.post_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 @router.delete("/{comment_id}/like", response_model=Comment, status_code=200)
@@ -263,21 +263,21 @@ def delete_like_comment(
 
     if existing:
         db.delete(existing)
-        if comment.likes and comment.likes > 0:
-            comment.likes -= 1
+        if comment.likes and comment.likes > 0:  # type: ignore
+            comment.likes -= 1  # type: ignore
         db.commit()
     # After unlike (or if not previously liked), return the updated comment object
     liked_by_current_user = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return Comment(
-        id=comment.id,
-        comment=comment.comment,
-        post_id=comment.post_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        post_id=str(comment.post_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 # Forum Comment Endpoints (using the same Comments table)
@@ -287,16 +287,16 @@ def get_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     result = []
     for comment in comments:
         result.append(Comment(
-            id=comment.id,
-            comment=comment.comment,
-            forum_id=comment.forum_id,
-            post_id=comment.post_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            forum_id=str(comment.forum_id),
+            post_id=str(comment.post_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     return result
 
@@ -311,16 +311,16 @@ def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     result = []
     for comment in main_comments:
         result.append(Comment(
-            id=comment.id,
-            comment=comment.comment,
-            forum_id=comment.forum_id,
-            post_id=comment.post_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            forum_id=str(comment.forum_id),
+            post_id=str(comment.post_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     return result
 
@@ -331,16 +331,16 @@ def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = 
     result = []
     for reply in replies:
         result.append(Comment(
-            id=reply.id,
-            comment=reply.comment,
-            forum_id=reply.forum_id,
-            post_id=reply.post_id,
-            parent_id=reply.parent_id,
-            user_id=reply.user_id,
-            username=reply.username,
+            id=str(reply.id),
+            comment=str(reply.comment),
+            forum_id=str(reply.forum_id),
+            post_id=str(reply.post_id),
+            parent_id=reply.parent_id,  # type: ignore
+            user_id=reply.user_id,  # type: ignore
+            username=reply.username,  # type: ignore
             liked_by_current_user=False,
-            likes=reply.likes or 0,
-            timestamp=reply.timestamp
+            likes=reply.likes or 0,  # type: ignore
+            timestamp=reply.timestamp  # type: ignore
         ))
     return result
 
@@ -369,14 +369,14 @@ def create_forum_comment(
     db.refresh(new_comment)
     
     return Comment(
-        id=new_comment.id,
-        comment=new_comment.comment,
-        forum_id=new_comment.forum_id,
-        post_id=new_comment.post_id,
-        parent_id=new_comment.parent_id,
-        user_id=new_comment.user_id,
-        username=new_comment.username,
+        id=str(new_comment.id),
+        comment=str(new_comment.comment),
+        forum_id=str(new_comment.forum_id),
+        post_id=str(new_comment.post_id),
+        parent_id=new_comment.parent_id,  # type: ignore
+        user_id=new_comment.user_id,  # type: ignore
+        username=new_comment.username,  # type: ignore
         liked_by_current_user=False,
-        likes=new_comment.likes or 0,
-        timestamp=new_comment.timestamp
+        likes=new_comment.likes or 0,  # type: ignore
+        timestamp=new_comment.timestamp  # type: ignore
     )

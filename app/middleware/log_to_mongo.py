@@ -9,7 +9,7 @@ class MongoLoggingMiddleware(BaseHTTPMiddleware):
             "method": request.method,
             "path": request.url.path,
             "timestamp": datetime.datetime.utcnow(),
-            "client": request.client.host,
+            "client": request.client.host,  # type: ignore
         }
         try:
             db.api_logs.insert_one(log_entry)

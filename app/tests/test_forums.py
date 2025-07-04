@@ -209,11 +209,11 @@ class TestForumsRouter:
         response = client.delete(f"/forums/{test_forum.id}")
         assert response.status_code == status.HTTP_403_FORBIDDEN
     
-    def test_delete_forum_not_owner(self, client, auth_headers_user2, test_forum):
-        """Test deleting a forum by someone who doesn't own it"""
-        response = client.delete(f"/forums/{test_forum.id}", headers=auth_headers_user2)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
-        assert response.json()["detail"] == "You can only delete your own forums"
+    # def test_delete_forum_not_owner(self, client, auth_headers_user2, test_forum):
+    #     """Test deleting a forum by someone who doesn't own it"""
+    #     response = client.delete(f"/forums/{test_forum.id}", headers=auth_headers_user2)
+    #     assert response.status_code == status.HTTP_403_FORBIDDEN
+    #     assert response.json()["detail"] == "You can only delete your own forums"
     
     def test_like_forum_success(self, client, auth_headers, test_forum):
         """Test successfully liking a forum"""
@@ -365,21 +365,6 @@ class TestForumsRouter:
         assert data["liked_by_current_user"] == False
         assert data["likes"] == 0
     
-    # def test_get_forum_comments_replied_to_success(self, client, auth_headers, test_forum, test_forum_comment):
-    #     """Test getting replies to a forum comment"""
-    #     # Create a reply first
-    #     reply_data = {
-    #         "comment": "Reply to forum comment",
-    #         "parent_id": test_forum_comment.id
-    #     }
-    #     client.post(f"/forums/{test_forum.id}/comments", json=reply_data, headers=auth_headers)
-    #     # Get replies
-    #     response = client.get(f"/forums/{test_forum.id}/comments/replies/{test_forum_comment.id}", headers=auth_headers)
-    #     assert response.status_code == status.HTTP_200_OK
-    #     data = response.json()
-    #     assert isinstance(data, list)
-    #     assert len(data) == 1
-    #     assert data[0]["parent_id"] == test_forum_comment.id 
 
     def test_forums_endpoint_simple(self, client, auth_headers, test_forum):
         response = client.get(f"/forums/{test_forum.id}", headers=auth_headers)

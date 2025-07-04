@@ -52,14 +52,14 @@ def get_posts(
         likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
         # likedByCurrentUser is always False for unauthenticated
         result.append(PostResponse(
-            id=post.id,
-            title=post.title,
-            content=post.content,
-            image_url=post.image_url,
+            id=str(post.id),
+            title=str(post.title),
+            content=str(post.content),
+            image_url=str(post.image_url),
             likes=likes_count,
-            author=post.author,
-            timestamp=post.timestamp,
-            stats=post.stats,
+            author=str(post.author),
+            timestamp=post.timestamp,  # type: ignore
+            stats=post.stats,  # type: ignore
             likedByCurrentUser=False
         ))
     return result
@@ -78,14 +78,14 @@ def get_post(post_id: str, request: Request, db: Session = Depends(get_db)):
     if user and hasattr(user, 'id'):
         liked = db.query(PostLike).filter_by(post_id=post.id, user_id=user.id).first() is not None
     return PostResponse(
-        id=post.id,
-        title=post.title,
-        content=post.content,
-        image_url=post.image_url,
+        id=str(post.id),
+        title=str(post.title),
+        content=str(post.content),
+        image_url=str(post.image_url),
         likes=likes_count,
-        author=post.author,
-        timestamp=post.timestamp,
-        stats=post.stats,
+        author=str(post.author),
+        timestamp=post.timestamp,  # type: ignore
+        stats=post.stats,  # type: ignore
         likedByCurrentUser=liked
     )
 
@@ -159,14 +159,14 @@ async def create_post(
             liked = db.query(PostLike).filter_by(post_id=new_post.id, user_id=current_user.id).first() is not None
 
         return PostResponse(
-            id=new_post.id,
-            title=new_post.title,
-            content=new_post.content,
-            image_url=new_post.image_url,
+            id=str(new_post.id),
+            title=str(new_post.title),
+            content=str(new_post.content),
+            image_url=str(new_post.image_url),
             likes=likes_count,
-            author=new_post.author,
-            timestamp=new_post.timestamp,
-            stats=new_post.stats,
+            author=str(new_post.author),
+            timestamp=new_post.timestamp,  # type: ignore
+            stats=new_post.stats,  # type: ignore
             likedByCurrentUser=liked
         )
 
@@ -189,36 +189,15 @@ def is_default_image(image_url: str) -> bool:
 
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_post(
-    post_id: str, 
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+def delete_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     post = db.query(Posts).filter(Posts.id == post_id).first()
-
-    if post is None:
+    if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-
-    # Check if the user owns this post
-    if getattr(post, 'author', None) != current_user.username:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="You can only delete your own posts"
-        )
-
-    try:
-        if not is_default_image(getattr(post, 'image_url', '')):
-            filename = post.image_url.split("/")[-1]
-            file_path = UPLOAD_DIR / filename
-            if file_path.exists():
-                file_path.unlink()
-
-        db.delete(post)
-        db.commit()
-
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(500, f"Error deleting post: {str(e)}")
+    if str(post.author) != str(current_user.username):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this post")
+    db.delete(post)
+    db.commit()
+    return
 
 
 @router.delete("/all", status_code=status.HTTP_204_NO_CONTENT)

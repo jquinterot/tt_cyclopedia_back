@@ -16,4 +16,4 @@ class MongoLoggingMiddleware(BaseHTTPMiddleware):
         except Exception as e:
             pass  # Optionally log to file if Mongo is down
         response = await call_next(request)
-        return response 
+        return response

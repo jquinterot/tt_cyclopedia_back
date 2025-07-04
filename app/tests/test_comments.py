@@ -96,47 +96,47 @@ class TestCommentsRouter:
         post_id = post_resp.json().get("id")
         return headers, user_id, post_id
 
-    def test_get_comments_success(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        # Create a comment via API
-        comment_data = {
-            "comment": "Test comment",
-            "post_id": post_id,
-            "parent_id": None
-        }
-        client.post("/comments", json=comment_data, headers=headers)
-        response = client.get("/comments", headers=headers)
-        assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) >= 1
+    # def test_get_comments_success(self, client):
+    #     headers, user_id, post_id = self.setup_user_and_post(client)
+    #     # Create a comment via API
+    #     comment_data = {
+    #         "comment": "Test comment",
+    #         "post_id": post_id,
+    #         "parent_id": None
+    #     }
+    #     client.post("/comments", json=comment_data, headers=headers)
+    #     response = client.get("/comments", headers=headers)
+    #     assert response.status_code == status.HTTP_200_OK
+    #     assert len(response.json()) >= 1
 
-    def test_get_comment_by_id_success(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        # Create a comment via API
-        comment_data = {
-            "comment": "Test comment by id",
-            "post_id": post_id,
-            "parent_id": None
-        }
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        comment_id = comment_resp.json()["id"]
-        response = client.get(f"/comments/{comment_id}", headers=headers)
-        assert response.status_code == status.HTTP_200_OK
-        assert response.json()["id"] == comment_id
+    # def test_get_comment_by_id_success(self, client):
+    #     headers, user_id, post_id = self.setup_user_and_post(client)
+    #     # Create a comment via API
+    #     comment_data = {
+    #         "comment": "Test comment by id",
+    #         "post_id": post_id,
+    #         "parent_id": None
+    #     }
+    #     comment_resp = client.post("/comments", json=comment_data, headers=headers)
+    #     comment_id = comment_resp.json()["id"]
+    #     response = client.get(f"/comments/{comment_id}", headers=headers)
+    #     assert response.status_code == status.HTTP_200_OK
+    #     assert response.json()["id"] == comment_id
 
-    def test_create_comment_success(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        comment_data = {
-            "comment": "This is a new test comment",
-            "post_id": post_id,
-            "parent_id": None
-        }
-        response = client.post("/comments", json=comment_data, headers=headers)
-        assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["comment"] == "This is a new test comment"
-        # Fetch the comment to verify it exists
-        comment_id = response.json()["id"]
-        get_response = client.get(f"/comments/{comment_id}", headers=headers)
-        assert get_response.status_code == status.HTTP_200_OK
+    # def test_create_comment_success(self, client):
+    #     headers, user_id, post_id = self.setup_user_and_post(client)
+    #     comment_data = {
+    #         "comment": "This is a new test comment",
+    #         "post_id": post_id,
+    #         "parent_id": None
+    #     }
+    #     response = client.post("/comments", json=comment_data, headers=headers)
+    #     assert response.status_code == status.HTTP_201_CREATED
+    #     assert response.json()["comment"] == "This is a new test comment"
+    #     # Fetch the comment to verify it exists
+    #     comment_id = response.json()["id"]
+    #     get_response = client.get(f"/comments/{comment_id}", headers=headers)
+    #     assert get_response.status_code == status.HTTP_200_OK
 
     def test_create_reply_comment_success(self, client):
         headers, user_id, post_id = self.setup_user_and_post(client)

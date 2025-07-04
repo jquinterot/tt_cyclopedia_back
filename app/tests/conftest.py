@@ -30,6 +30,9 @@ engine = create_engine(
 TestBase = declarative_base()
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
+# Create all tables for testing
+Base.metadata.create_all(bind=engine)
+
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -45,7 +48,7 @@ from app.routers.forums.models import Forums, ForumLike, ForumComment, ForumComm
 @pytest.fixture(scope="function")
 def db_session():
     """Yield a session and clean up all tables after each test."""
-    session = SessionLocal()
+    session = TestingSessionLocal()
     try:
         yield session
     finally:

@@ -60,5 +60,5 @@ async def get_current_user_optional(
         username = jwt_handler.verify_token(credentials.credentials)
         user = db.query(Users).filter(Users.username == username).first()
         return user
-    except:
-        return None 
+    except Exception:
+        return None

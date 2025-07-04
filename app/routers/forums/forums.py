@@ -29,13 +29,13 @@ def get_all_forums(db: Session = Depends(get_db)):
     result = []
     for f in forums:
         result.append(ForumResponse(
-            id=f.id,
-            title=f.title,
-            content=f.content,
-            author=f.author,
-            likes=f.likes or 0,
-            timestamp=f.timestamp,
-            updated_timestamp=f.updated_timestamp,
+            id=str(f.id),
+            title=str(f.title),
+            content=str(f.content),
+            author=str(f.author),
+            likes=f.likes or 0,  # type: ignore
+            timestamp=f.timestamp,  # type: ignore
+            updated_timestamp=f.updated_timestamp,  # type: ignore
             liked_by_current_user=False
         ))
     return result
@@ -55,13 +55,13 @@ def get_forum_by_id(forum_id: str, db: Session = Depends(get_db)):
         )
     
     return ForumResponse(
-        id=forum.id,
-        title=forum.title,
-        content=forum.content,
-        author=forum.author,
-        likes=forum.likes or 0,
-        timestamp=forum.timestamp,
-        updated_timestamp=forum.updated_timestamp,
+        id=str(forum.id),
+        title=str(forum.title),
+        content=str(forum.content),
+        author=str(forum.author),
+        likes=forum.likes or 0,  # type: ignore
+        timestamp=forum.timestamp,  # type: ignore
+        updated_timestamp=forum.updated_timestamp,  # type: ignore
         liked_by_current_user=False
     )
 
@@ -72,9 +72,6 @@ def create_forum(
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """
-    Create a new forum - Requires authentication
-    """
     new_forum = Forums(
         id=shortuuid.uuid(),
         title=forum.title,
@@ -90,13 +87,13 @@ def create_forum(
     db.refresh(new_forum)
     
     return ForumResponse(
-        id=new_forum.id,
-        title=new_forum.title,
-        content=new_forum.content,
-        author=new_forum.author,
-        likes=new_forum.likes or 0,
-        timestamp=new_forum.timestamp,
-        updated_timestamp=new_forum.updated_timestamp,
+        id=str(new_forum.id),
+        title=str(new_forum.title),
+        content=str(new_forum.content),
+        author=str(new_forum.author),
+        likes=new_forum.likes or 0,  # type: ignore
+        timestamp=new_forum.timestamp,  # type: ignore
+        updated_timestamp=new_forum.updated_timestamp,  # type: ignore
         liked_by_current_user=False
     )
 
@@ -139,45 +136,27 @@ def update_forum(
     liked_by_current_user = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
     
     return ForumResponse(
-        id=forum.id,
-        title=forum.title,
-        content=forum.content,
-        author=forum.author,
-        likes=forum.likes or 0,
-        timestamp=forum.timestamp,
-        updated_timestamp=forum.updated_timestamp,
+        id=str(forum.id),
+        title=str(forum.title),
+        content=str(forum.content),
+        author=str(forum.author),
+        likes=forum.likes or 0,  # type: ignore
+        timestamp=forum.timestamp,  # type: ignore
+        updated_timestamp=forum.updated_timestamp,  # type: ignore
         liked_by_current_user=liked_by_current_user
     )
 
 
 @router.delete("/{forum_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_forum(
-    forum_id: str,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Delete a forum - Requires authentication and ownership
-    """
+def delete_forum(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     forum = db.query(Forums).filter(Forums.id == forum_id).first()
-    
-    if forum is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, 
-            detail="Forum not found"
-        )
-    
-    # Check if the user owns this forum
-    if getattr(forum, 'author', None) != current_user.username:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="You can only delete your own forums"
-        )
-    
+    if not forum:
+        raise HTTPException(status_code=404, detail="Forum not found")
+    if str(forum.author) != str(current_user.username):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this forum")
     db.delete(forum)
     db.commit()
-    
-    return None
+    return
 
 
 # Forum Like Endpoints
@@ -194,25 +173,27 @@ def toggle_like_forum(
 
     if existing:
         db.delete(existing)
-        if forum.likes and forum.likes > 0:
-            forum.likes -= 1
+        current_likes = forum.likes or 0
+        if current_likes > 0:  # type: ignore
+            setattr(forum, 'likes', current_likes - 1)
         db.commit()
     else:
         like = ForumLike(forum_id=forum_id, user_id=current_user.id)
         db.add(like)
-        forum.likes = (forum.likes or 0) + 1
+        current_likes = forum.likes or 0
+        setattr(forum, 'likes', current_likes + 1)
         db.commit()
 
     # Return the updated forum object
     liked_by_current_user = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
     return ForumResponse(
-        id=forum.id,
-        title=forum.title,
-        content=forum.content,
-        author=forum.author,
-        likes=forum.likes or 0,
-        timestamp=forum.timestamp,
-        updated_timestamp=forum.updated_timestamp,
+        id=str(forum.id),
+        title=str(forum.title),
+        content=str(forum.content),
+        author=str(forum.author),
+        likes=forum.likes or 0,  # type: ignore
+        timestamp=forum.timestamp,  # type: ignore
+        updated_timestamp=forum.updated_timestamp,  # type: ignore
         liked_by_current_user=liked_by_current_user
     )
 
@@ -230,20 +211,20 @@ def delete_like_forum(
 
     if existing:
         db.delete(existing)
-        if forum.likes and forum.likes > 0:
-            forum.likes -= 1
+        if (forum.likes or 0) > 0:  # type: ignore
+            setattr(forum, 'likes', (forum.likes or 0) - 1)
         db.commit()
     
     # After unlike (or if not previously liked), return the updated forum object
     liked_by_current_user = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
     return ForumResponse(
-        id=forum.id,
-        title=forum.title,
-        content=forum.content,
-        author=forum.author,
-        likes=forum.likes or 0,
-        timestamp=forum.timestamp,
-        updated_timestamp=forum.updated_timestamp,
+        id=str(forum.id),
+        title=str(forum.title),
+        content=str(forum.content),
+        author=str(forum.author),
+        likes=forum.likes or 0,  # type: ignore
+        timestamp=forum.timestamp,  # type: ignore
+        updated_timestamp=forum.updated_timestamp,  # type: ignore
         liked_by_current_user=liked_by_current_user
     )
 
@@ -255,15 +236,15 @@ def get_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     result = []
     for c in comments:
         result.append(ForumComment(
-            id=c.id,
-            comment=c.comment,
-            forum_id=c.forum_id,
-            parent_id=c.parent_id,
-            user_id=c.user_id,
-            username=c.username,
+            id=str(c.id),
+            comment=str(c.comment),
+            forum_id=str(c.forum_id),
+            parent_id=c.parent_id,  # type: ignore
+            user_id=c.user_id,  # type: ignore
+            username=c.username,  # type: ignore
             liked_by_current_user=False,
-            likes=c.likes or 0,
-            timestamp=c.timestamp
+            likes=c.likes or 0,  # type: ignore
+            timestamp=c.timestamp  # type: ignore
         ))
     return result
 
@@ -279,15 +260,15 @@ def get_main_forum_comments(forum_id: str, db: Session = Depends(get_db)):
     result = []
     for comment in main_comments:
         result.append(ForumComment(
-            id=comment.id,
-            comment=comment.comment,
-            forum_id=comment.forum_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            forum_id=str(comment.forum_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     
     return result
@@ -300,15 +281,15 @@ def get_forum_comments_replied_to(comment_id: str, forum_id: str, db: Session = 
     result = []
     for reply in replies:
         result.append(ForumComment(
-            id=reply.id,
-            comment=reply.comment,
-            forum_id=reply.forum_id,
-            parent_id=reply.parent_id,
-            user_id=reply.user_id,
-            username=reply.username,
+            id=str(reply.id),
+            comment=str(reply.comment),
+            forum_id=str(reply.forum_id),
+            parent_id=reply.parent_id,  # type: ignore
+            user_id=reply.user_id,  # type: ignore
+            username=reply.username,  # type: ignore
             liked_by_current_user=False,
-            likes=reply.likes or 0,
-            timestamp=reply.timestamp
+            likes=reply.likes or 0,  # type: ignore
+            timestamp=reply.timestamp  # type: ignore
         ))
     
     return result
@@ -333,15 +314,15 @@ def post_forum_comment(
     db.commit()
     db.refresh(new_comment)
     return ForumComment(
-        id=new_comment.id,
-        comment=new_comment.comment,
-        forum_id=new_comment.forum_id,
-        parent_id=new_comment.parent_id,
-        user_id=new_comment.user_id,
-        username=new_comment.username,
+        id=str(new_comment.id),
+        comment=str(new_comment.comment),
+        forum_id=str(new_comment.forum_id),
+        parent_id=new_comment.parent_id,  # type: ignore
+        user_id=new_comment.user_id,  # type: ignore
+        username=new_comment.username,  # type: ignore
         liked_by_current_user=False,
-        likes=new_comment.likes or 0,
-        timestamp=new_comment.timestamp
+        likes=new_comment.likes or 0,  # type: ignore
+        timestamp=new_comment.timestamp  # type: ignore
     )
 
 
@@ -356,23 +337,23 @@ def update_forum_comment(
     item_to_update = db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
     if item_to_update is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Resource Not Found")
-    if item_to_update.user_id != current_user.id:
+    if item_to_update.user_id != current_user.id:  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only edit your own comments")
     
-    item_to_update.comment = updated_comment.comment
+    item_to_update.comment = updated_comment.comment  # type: ignore
     db.commit()
     
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
-        id=item_to_update.id,
-        comment=item_to_update.comment,
-        forum_id=item_to_update.forum_id,
-        parent_id=item_to_update.parent_id,
-        user_id=item_to_update.user_id,
-        username=item_to_update.username,
-        likes=item_to_update.likes or 0,
+        id=str(item_to_update.id),
+        comment=str(item_to_update.comment),
+        forum_id=str(item_to_update.forum_id),
+        parent_id=item_to_update.parent_id,  # type: ignore
+        user_id=item_to_update.user_id,  # type: ignore
+        username=item_to_update.username,  # type: ignore
+        likes=item_to_update.likes or 0,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        timestamp=item_to_update.timestamp
+        timestamp=item_to_update.timestamp  # type: ignore
     )
 
 
@@ -386,7 +367,7 @@ def delete_forum_comment_with_replies(
     comment_to_delete = db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
     if not comment_to_delete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
-    if comment_to_delete.user_id != current_user.id:
+    if comment_to_delete.user_id != current_user.id:  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own comments")
     
     if comment_to_delete.parent_id is None:
@@ -413,26 +394,26 @@ def toggle_like_forum_comment(
 
     if existing:
         db.delete(existing)
-        if comment.likes and comment.likes > 0:
-            comment.likes -= 1
+        if comment.likes and comment.likes > 0:  # type: ignore
+            comment.likes -= 1  # type: ignore
         db.commit()
     else:
         like = ForumCommentLike(comment_id=comment_id, user_id=current_user.id)
         db.add(like)
-        comment.likes = (comment.likes or 0) + 1
+        comment.likes = (comment.likes or 0) + 1  # type: ignore
         db.commit()
 
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
-        id=comment.id,
-        comment=comment.comment,
-        forum_id=comment.forum_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        forum_id=str(comment.forum_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 
@@ -450,21 +431,21 @@ def delete_like_forum_comment(
 
     if existing:
         db.delete(existing)
-        if comment.likes and comment.likes > 0:
-            comment.likes -= 1
+        if comment.likes and comment.likes > 0:  # type: ignore
+            comment.likes -= 1  # type: ignore
         db.commit()
     
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
-        id=comment.id,
-        comment=comment.comment,
-        forum_id=comment.forum_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        forum_id=str(comment.forum_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 
@@ -478,15 +459,15 @@ def get_all_forum_comments(db: Session = Depends(get_db)):
     result = []
     for c in comments:
         result.append(ForumComment(
-            id=c.id,
-            comment=c.comment,
-            forum_id=c.forum_id,
-            parent_id=c.parent_id,
-            user_id=c.user_id,
-            username=c.username,
+            id=str(c.id),
+            comment=str(c.comment),
+            forum_id=str(c.forum_id),
+            parent_id=c.parent_id,  # type: ignore
+            user_id=c.user_id,  # type: ignore
+            username=c.username,  # type: ignore
             liked_by_current_user=False,
-            likes=c.likes or 0,
-            timestamp=c.timestamp
+            likes=c.likes or 0,  # type: ignore
+            timestamp=c.timestamp  # type: ignore
         ))
     return result
 
@@ -501,15 +482,15 @@ def get_forum_comment(comment_id: str, db: Session = Depends(get_db)):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forum comment not found")
     
     return ForumComment(
-        id=comment.id,
-        comment=comment.comment,
-        forum_id=comment.forum_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        forum_id=str(comment.forum_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=False,  # Will be set by frontend if needed
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 
@@ -534,15 +515,15 @@ def create_forum_comment(
     db.commit()
     db.refresh(new_comment)
     return ForumComment(
-        id=new_comment.id,
-        comment=new_comment.comment,
-        forum_id=new_comment.forum_id,
-        parent_id=new_comment.parent_id,
-        user_id=new_comment.user_id,
-        username=new_comment.username,
+        id=str(new_comment.id),
+        comment=str(new_comment.comment),
+        forum_id=str(new_comment.forum_id),
+        parent_id=new_comment.parent_id,  # type: ignore
+        user_id=new_comment.user_id,  # type: ignore
+        username=new_comment.username,  # type: ignore
         liked_by_current_user=False,
-        likes=new_comment.likes or 0,
-        timestamp=new_comment.timestamp
+        likes=new_comment.likes or 0,  # type: ignore
+        timestamp=new_comment.timestamp  # type: ignore
     )
 
 
@@ -559,23 +540,23 @@ def update_forum_comment_general(
     item_to_update = db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
     if item_to_update is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forum comment not found")
-    if item_to_update.user_id != current_user.id:
+    if item_to_update.user_id != current_user.id:  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only edit your own comments")
     
-    item_to_update.comment = updated_comment.comment
+    item_to_update.comment = updated_comment.comment  # type: ignore
     db.commit()
     
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
-        id=item_to_update.id,
-        comment=item_to_update.comment,
-        forum_id=item_to_update.forum_id,
-        parent_id=item_to_update.parent_id,
-        user_id=item_to_update.user_id,
-        username=item_to_update.username,
-        likes=item_to_update.likes or 0,
+        id=str(item_to_update.id),
+        comment=str(item_to_update.comment),
+        forum_id=str(item_to_update.forum_id),
+        parent_id=item_to_update.parent_id,  # type: ignore
+        user_id=item_to_update.user_id,  # type: ignore
+        username=item_to_update.username,  # type: ignore
+        likes=item_to_update.likes or 0,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        timestamp=item_to_update.timestamp
+        timestamp=item_to_update.timestamp  # type: ignore
     )
 
 
@@ -591,7 +572,7 @@ def delete_forum_comment_general(
     comment_to_delete = db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
     if not comment_to_delete:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Forum comment not found")
-    if comment_to_delete.user_id != current_user.id:
+    if comment_to_delete.user_id != current_user.id:  # type: ignore
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You can only delete your own comments")
     
     if comment_to_delete.parent_id is None:
@@ -620,26 +601,26 @@ def toggle_like_forum_comment_general(
 
     if existing:
         db.delete(existing)
-        if comment.likes and comment.likes > 0:
-            comment.likes -= 1
+        if comment.likes and comment.likes > 0:  # type: ignore
+            comment.likes -= 1  # type: ignore
         db.commit()
     else:
         like = ForumCommentLike(comment_id=comment_id, user_id=current_user.id)
         db.add(like)
-        comment.likes = (comment.likes or 0) + 1
+        comment.likes = (comment.likes or 0) + 1  # type: ignore
         db.commit()
 
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
-        id=comment.id,
-        comment=comment.comment,
-        forum_id=comment.forum_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        forum_id=str(comment.forum_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 
@@ -659,21 +640,21 @@ def delete_like_forum_comment_general(
 
     if existing:
         db.delete(existing)
-        if comment.likes and comment.likes > 0:
-            comment.likes -= 1
+        if comment.likes and comment.likes > 0:  # type: ignore
+            comment.likes -= 1  # type: ignore
         db.commit()
     
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
-        id=comment.id,
-        comment=comment.comment,
-        forum_id=comment.forum_id,
-        parent_id=comment.parent_id,
-        user_id=comment.user_id,
-        username=comment.username,
+        id=str(comment.id),
+        comment=str(comment.comment),
+        forum_id=str(comment.forum_id),
+        parent_id=comment.parent_id,  # type: ignore
+        user_id=comment.user_id,  # type: ignore
+        username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,
-        timestamp=comment.timestamp
+        likes=comment.likes or 0,  # type: ignore
+        timestamp=comment.timestamp  # type: ignore
     )
 
 
@@ -688,15 +669,15 @@ def get_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get_db))
     result = []
     for comment in comments:
         result.append(ForumComment(
-            id=comment.id,
-            comment=comment.comment,
-            forum_id=comment.forum_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            forum_id=str(comment.forum_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     
     return result
@@ -716,15 +697,15 @@ def get_main_forum_comments_by_forum_id(forum_id: str, db: Session = Depends(get
     result = []
     for comment in main_comments:
         result.append(ForumComment(
-            id=comment.id,
-            comment=comment.comment,
-            forum_id=comment.forum_id,
-            parent_id=comment.parent_id,
-            user_id=comment.user_id,
-            username=comment.username,
+            id=str(comment.id),
+            comment=str(comment.comment),
+            forum_id=str(comment.forum_id),
+            parent_id=comment.parent_id,  # type: ignore
+            user_id=comment.user_id,  # type: ignore
+            username=comment.username,  # type: ignore
             liked_by_current_user=False,
-            likes=comment.likes or 0,
-            timestamp=comment.timestamp
+            likes=comment.likes or 0,  # type: ignore
+            timestamp=comment.timestamp  # type: ignore
         ))
     
     return result
@@ -740,15 +721,15 @@ def get_forum_comments_replied_to_by_forum_id(comment_id: str, forum_id: str, db
     result = []
     for reply in replies:
         result.append(ForumComment(
-            id=reply.id,
-            comment=reply.comment,
-            forum_id=reply.forum_id,
-            parent_id=reply.parent_id,
-            user_id=reply.user_id,
-            username=reply.username,
+            id=str(reply.id),
+            comment=str(reply.comment),
+            forum_id=str(reply.forum_id),
+            parent_id=reply.parent_id,  # type: ignore
+            user_id=reply.user_id,  # type: ignore
+            username=reply.username,  # type: ignore
             liked_by_current_user=False,
-            likes=reply.likes or 0,
-            timestamp=reply.timestamp
+            likes=reply.likes or 0,  # type: ignore
+            timestamp=reply.timestamp  # type: ignore
         ))
     
     return result

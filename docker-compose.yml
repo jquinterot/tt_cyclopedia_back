@@ -42,6 +42,17 @@ services:
       timeout: 5s
       retries: 5
 
+  test:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SQL_DB=postgresql://postgres:postgres@db:5432/tt_cyclopedia
+    command: sh -c "alembic upgrade head && python3 run_ci_tests.py"
+    volumes:
+      - .:/app
+
 volumes:
   postgres_data:
   mongo_data:

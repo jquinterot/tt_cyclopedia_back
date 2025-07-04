@@ -1,13 +1,13 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 from sqlalchemy import null
 from sqlalchemy.orm import Session
-
 from .models import Users
 from typing import Optional, List
 from app.config.postgres_config import SessionLocal
 import shortuuid
 from passlib.context import CryptContext
 from app.auth.jwt_handler import jwt_handler
+from app.auth.dependencies import get_current_user
 
 from .schemas import User, UserCreate, UserLogin, UserResponse, LoginResponse
 
@@ -56,16 +56,16 @@ def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
 def login(user_data: UserLogin, db: Session = Depends(get_db)):
     user = db.query(Users).filter(Users.username == user_data.username).first()
-    
-    if not user or not verify_password(user_data.password, user.password):
+
+    if not user or not verify_password(user_data.password, str(user.password)):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, 
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
-    
+
     # Create access token
     access_token = jwt_handler.create_access_token(data={"sub": user.username})
-    
+
     return {
         "access_token": access_token,
         "token_type": "bearer",
@@ -101,3 +101,15 @@ def post_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return new_user
+
+
+@router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(user_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    user = db.query(Users).filter(Users.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if str(user.id) != str(current_user.id):
+        raise HTTPException(status_code=403, detail="Not authorized to delete this user")
+    db.delete(user)
+    db.commit()
+    return

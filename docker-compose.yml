@@ -48,7 +48,7 @@ services:
       - db
     environment:
       - SQL_DB=postgresql://postgres:postgres@db:5432/tt_cyclopedia
-    command: sh -c "alembic upgrade head && python3 run_ci_tests.py"
+    command: sh -c "alembic upgrade head && python3 -m pytest app/tests/*.py::TestSetup --maxfail=10 --disable-warnings -q"
     volumes:
       - .:/app
 

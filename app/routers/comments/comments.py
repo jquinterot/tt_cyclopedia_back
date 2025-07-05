@@ -5,9 +5,9 @@ from sqlalchemy.orm import Session
 from .schemas import Comment, CommentCreate, CommentUpdate
 from .models import Comments, CommentLike
 from typing import List
-from app.config.postgres_config import SessionLocal
-from app.auth.dependencies import get_current_user, get_db
+from app.auth.dependencies import get_current_user
 from app.routers.users.models import Users
+from app.config.postgres_config import get_db
 import shortuuid
 
 router = APIRouter(prefix="/comments",

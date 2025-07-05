@@ -7,11 +7,11 @@ from sqlalchemy import or_
 from .models import Posts, PostLike
 from .schemas import PostResponse
 from typing import List, Optional
-from app.config.postgres_config import SessionLocal
-from app.auth.dependencies import get_current_user, get_db
+from app.auth.dependencies import get_current_user
 from app.routers.users.models import Users
-import shortuuid
+from app.config.postgres_config import get_db
 from app.config.image_config import UPLOAD_DIR
+import shortuuid
 import shutil
 import json
 

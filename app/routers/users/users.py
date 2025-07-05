@@ -3,13 +3,12 @@ from sqlalchemy import null
 from sqlalchemy.orm import Session
 from .models import Users
 from typing import Optional, List
-from app.config.postgres_config import SessionLocal
-import shortuuid
 from passlib.context import CryptContext
 from app.auth.jwt_handler import jwt_handler
 from app.auth.dependencies import get_current_user
-
 from .schemas import User, UserCreate, UserLogin, UserResponse, LoginResponse
+from app.config.postgres_config import get_db
+import shortuuid
 
 router = APIRouter(prefix="/users",
                    )
@@ -19,14 +18,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class Config:
     orm_mode = True
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 def hash_password(password: str) -> str:

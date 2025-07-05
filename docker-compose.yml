@@ -45,8 +45,7 @@ services:
   test:
     build: .
     depends_on:
-      db:
-        condition: service_healthy
+      - db
     environment:
       - SQL_DB=postgresql://postgres:postgres@db:5432/tt_cyclopedia
     command: sh -c "alembic upgrade head && python3 run_ci_tests.py"

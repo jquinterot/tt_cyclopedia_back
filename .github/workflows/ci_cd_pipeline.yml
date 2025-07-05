@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SQL_DB: "postgresql://postgres:postgres@db:5432/tt_cyclopedia"
-      TEST_SQL_DB: "sqlite:///:memory:"
+      TEST_SQL_DB: "sqlite:///./test.db"
       MONGO_DB: "mongodb://mongo:27017"
       MONGO_DB_NAME: tt_cyclopedia
 
@@ -58,6 +58,11 @@ jobs:
       - name: Show Postgres logs (after wait)
         run: |
           docker logs $(docker ps -qf "name=db") || echo "No db logs yet"
+
+      - name: Clean up test database
+        run: |
+          rm -f test.db
+          echo "Test database cleaned up"
 
       - name: Run unit tests
         run: poetry run pytest --maxfail=10 --disable-warnings -q

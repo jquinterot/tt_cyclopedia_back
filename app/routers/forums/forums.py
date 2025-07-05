@@ -3,21 +3,13 @@ from sqlalchemy.orm import Session
 from .schemas import ForumCreate, ForumResponse, ForumUpdate, ForumComment, ForumCommentCreate, ForumCommentUpdate
 from .models import Forums, ForumLike, ForumComment as ForumCommentModel, ForumCommentLike
 from typing import List
-from app.config.postgres_config import SessionLocal
-from app.auth.dependencies import get_current_user, get_db
+from app.auth.dependencies import get_current_user
 from app.routers.users.models import Users
+from app.config.postgres_config import get_db
 import shortuuid
 from datetime import datetime
 
 router = APIRouter(prefix="/forums")
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.get("", response_model=List[ForumResponse], status_code=status.HTTP_200_OK)

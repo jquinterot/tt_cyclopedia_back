@@ -1,46 +1,27 @@
 import pytest
 from fastapi import status
-from app.routers.comments.models import Comments, CommentLike
-from app.routers.posts.models import Posts
-from app.routers.forums.models import Forums
-from app.routers.users.models import Users
+from app.tests.conftest import Comments, CommentLike, Posts, Forums, Users
 
 # --- FACTORY HELPERS ---
-def get_or_create_user(db_session):
-    user = db_session.query(Users).filter_by(id="test-user-id-123").first()
-    if not user:
-        user = Users(
-            id="test-user-id-123",
-            username="testuser",
-            email="test@example.com",
-            password="hashed"
-        )
-        db_session.add(user)
-        db_session.commit()
-        db_session.refresh(user)
-    return user
-
-def get_or_create_post(db_session, user):
-    post = db_session.query(Posts).filter_by(id="test-post-id-123").first()
-    if not post:
-        post = Posts(
-            id="test-post-id-123",
-            title="Test Post",
-            content="Test content",
-            author=user.username,
-            image_url="/static/default/default.jpeg",
-            likes=0
-        )
-        db_session.add(post)
-        db_session.commit()
-        db_session.refresh(post)
-    return post
+def make_comment(db_session, user, post, comment_text="Unit Comment"):
+    comment = Comments(
+        id=user.id + comment_text,
+        comment=comment_text,
+        post_id=post.id,
+        user_id=user.id,
+        username=user.username,
+        likes=0
+    )
+    db_session.add(comment)
+    db_session.commit()
+    db_session.refresh(comment)
+    return comment
 
 class TestSetup:
     """Basic setup and health checks for the test environment."""
     def test_imports_work(self):
         from app.main import app
-        from app.routers.comments.models import Comments
+        from app.tests.conftest import Comments
         assert True
 
     def test_client_fixture(self, client):
@@ -59,299 +40,201 @@ class TestSetup:
         assert "Authorization" in auth_headers
         assert auth_headers["Authorization"].startswith("Bearer ")
 
-    def test_basic_health_check(self, client):
-        response = client.get("/docs")
-        assert response.status_code in [200, 404]
+
 
 class TestCommentsRouter:
     """Test suite for comments router endpoints (unit and integration)."""
 
-    def setup_user_and_post(self, client):
-        # Create user via API
-        user_data = {
-            "username": "testuser",
-            "email": "test@example.com",
-            "password": "testpassword"
-        }
-        reg_resp = client.post("/users", json=user_data)
-        print("REGISTER STATUS:", reg_resp.status_code, reg_resp.json())
-        # Login to get auth headers
-        login_data = {"username": "testuser", "password": "testpassword"}
-        login_resp = client.post("/users/login", json=login_data)
-        print("LOGIN STATUS:", login_resp.status_code, login_resp.json())
-        token = login_resp.json().get("access_token")
-        headers = {"Authorization": f"Bearer {token}"}
-        # Fetch user ID
-        me_resp = client.get("/users/me", headers=headers)
-        print("ME STATUS:", me_resp.status_code, me_resp.json())
-        user_id = me_resp.json().get("id")
-        # Create post via API
-        post_data = {
-            "title": "Test Post",
-            "content": "Test content",
-            "image_url": "/static/default/default.jpeg"
-        }
-        post_resp = client.post("/posts", data=post_data, headers=headers)
-        print("POST STATUS:", post_resp.status_code, post_resp.json())
-        post_id = post_resp.json().get("id")
-        return headers, user_id, post_id
+    def test_get_comments_success(self, client, auth_headers, test_comment):
+        """Test successful retrieval of all comments"""
+        response = client.get("/comments", headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        assert data[0]["id"] == test_comment.id
+        assert data[0]["comment"] == test_comment.comment
+        assert data[0]["post_id"] == test_comment.post_id
+        assert data[0]["user_id"] == test_comment.user_id
+        assert data[0]["username"] == test_comment.username
+        assert "likes" in data[0]
+        assert "liked_by_current_user" in data[0]
+        assert "timestamp" in data[0]
 
-    # def test_get_comments_success(self, client):
-    #     headers, user_id, post_id = self.setup_user_and_post(client)
-    #     # Create a comment via API
-    #     comment_data = {
-    #         "comment": "Test comment",
-    #         "post_id": post_id,
-    #         "parent_id": None
-    #     }
-    #     client.post("/comments", json=comment_data, headers=headers)
-    #     response = client.get("/comments", headers=headers)
-    #     assert response.status_code == status.HTTP_200_OK
-    #     assert len(response.json()) >= 1
+    def test_get_comment_by_id_success(self, client, auth_headers, test_comment):
+        """Test successful retrieval of a specific comment by ID"""
+        response = client.get(f"/comments/{test_comment.id}", headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["id"] == test_comment.id
+        assert data["comment"] == test_comment.comment
+        assert data["post_id"] == test_comment.post_id
+        assert data["user_id"] == test_comment.user_id
+        assert data["username"] == test_comment.username
+        assert "likes" in data
+        assert "liked_by_current_user" in data
+        assert "timestamp" in data
 
-    # def test_get_comment_by_id_success(self, client):
-    #     headers, user_id, post_id = self.setup_user_and_post(client)
-    #     # Create a comment via API
-    #     comment_data = {
-    #         "comment": "Test comment by id",
-    #         "post_id": post_id,
-    #         "parent_id": None
-    #     }
-    #     comment_resp = client.post("/comments", json=comment_data, headers=headers)
-    #     comment_id = comment_resp.json()["id"]
-    #     response = client.get(f"/comments/{comment_id}", headers=headers)
-    #     assert response.status_code == status.HTTP_200_OK
-    #     assert response.json()["id"] == comment_id
+    def test_get_comment_by_id_not_found(self, client, auth_headers):
+        """Test getting a comment that doesn't exist"""
+        fake_id = "fake-comment-id"
+        response = client.get(f"/comments/{fake_id}", headers=auth_headers)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Resource Not Found"
 
-    # def test_create_comment_success(self, client):
-    #     headers, user_id, post_id = self.setup_user_and_post(client)
-    #     comment_data = {
-    #         "comment": "This is a new test comment",
-    #         "post_id": post_id,
-    #         "parent_id": None
-    #     }
-    #     response = client.post("/comments", json=comment_data, headers=headers)
-    #     assert response.status_code == status.HTTP_201_CREATED
-    #     assert response.json()["comment"] == "This is a new test comment"
-    #     # Fetch the comment to verify it exists
-    #     comment_id = response.json()["id"]
-    #     get_response = client.get(f"/comments/{comment_id}", headers=headers)
-    #     assert get_response.status_code == status.HTTP_200_OK
-
-    def test_create_reply_comment_success(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        # Create a parent comment via API
-        parent_data = {
-            "comment": "Parent comment",
-            "post_id": post_id,
-            "parent_id": None
+    def test_create_comment_success(self, client, auth_headers, test_post):
+        """Test successful comment creation"""
+        comment_data = {
+            "comment": "Test comment",
+            "post_id": test_post.id
         }
-        parent_resp = client.post("/comments", json=parent_data, headers=headers)
-        parent_id = parent_resp.json()["id"]
-        reply_data = {
-            "comment": "This is a reply to the test comment",
-            "post_id": post_id,
-            "parent_id": parent_id
-        }
-        response = client.post("/comments", json=reply_data, headers=headers)
+        response = client.post("/comments", json=comment_data, headers=auth_headers)
         assert response.status_code == status.HTTP_201_CREATED
-        assert response.json()["parent_id"] == parent_id
+        data = response.json()
+        assert data["comment"] == comment_data["comment"]
+        assert data["post_id"] == comment_data["post_id"]
+        assert "id" in data
+        assert "user_id" in data
+        assert "username" in data
 
-    def test_create_comment_invalid_data(self, client):
-        # Create user and post via API
-        user_data = {"username": "testuser", "email": "test@example.com", "password": "testpassword"}
-        client.post("/users", json=user_data)
-        login = client.post("/users/login", json={"username": "testuser", "password": "testpassword"})
-        token = login.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        # Missing post_id in payload
-        comment_data = {"comment": "Missing post_id"}
-        response = client.post("/comments", json=comment_data, headers=headers)
-        print("INVALID DATA RESPONSE:", response.status_code, response.json())
-        assert response.status_code in [201, 422]
-
-    def test_create_comment_integration(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
+    def test_create_comment_unauthorized(self, client, test_post):
+        """Test creating comment without authentication"""
         comment_data = {
-            "comment": "Integration comment",
-            "post_id": post_id,
-            "parent_id": None
+            "comment": "Unauthorized comment",
+            "post_id": test_post.id
         }
-        response = client.post("/comments", json=comment_data, headers=headers)
-        assert response.status_code == 201
-        assert response.json()["comment"] == "Integration comment"
-        assert response.json()["post_id"] == post_id
+        response = client.post("/comments", json=comment_data)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_update_comment_success(self, client, auth_headers, db_session):
-        # Create user, post, and comment via API
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        comment_data = {
-            "comment": "Update me",
-            "post_id": post_id,
-            "parent_id": None
+    def test_update_comment_success(self, client, auth_headers, test_comment):
+        """Test successful comment update by owner"""
+        update_data = {
+            "comment": "Updated comment"
         }
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        comment_id = comment_resp.json()["id"]
-        update_data = {"comment": "Updated comment content"}
-        response = client.put(f"/comments/{comment_id}", json=update_data, headers=headers)
-        assert response.status_code == 200
-        assert response.json()["comment"] == "Updated comment content"
-    
+        response = client.put(f"/comments/{test_comment.id}", json=update_data, headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["comment"] == update_data["comment"]
+        assert data["id"] == test_comment.id
+
+    def test_update_comment_not_owner(self, client, auth_headers_user2, test_comment):
+        """Test updating comment by non-owner"""
+        update_data = {
+            "comment": "Unauthorized update"
+        }
+        response = client.put(f"/comments/{test_comment.id}", json=update_data, headers=auth_headers_user2)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "You can only edit your own comments"
+
     def test_update_comment_not_found(self, client, auth_headers):
         """Test updating a comment that doesn't exist"""
         fake_id = "fake-comment-id"
         update_data = {
-            "comment": "Updated content"
+            "comment": "Updated comment"
         }
         response = client.put(f"/comments/{fake_id}", json=update_data, headers=auth_headers)
         assert response.status_code == status.HTTP_404_NOT_FOUND
         assert response.json()["detail"] == "Resource Not Found"
-    
-    def test_update_comment_not_owner(self, client):
-        # Create user1 and comment
-        headers1, user1_id, post_id = self.setup_user_and_post(client)
-        comment_data = {
-            "comment": "Owner's comment",
-            "post_id": post_id,
-            "parent_id": None
-        }
-        comment_resp = client.post("/comments", json=comment_data, headers=headers1)
-        comment_id = comment_resp.json()["id"]
-        # Create user2 and login
-        user2_data = {"username": "testuser2", "email": "test2@example.com", "password": "testpassword2"}
-        client.post("/users", json=user2_data)
-        login2 = client.post("/users/login", json={"username": "testuser2", "password": "testpassword2"})
-        token2 = login2.json()["access_token"]
-        headers2 = {"Authorization": f"Bearer {token2}"}
-        # Try to update comment as user2
-        update_data = {"comment": "Unauthorized update"}
-        response = client.put(f"/comments/{comment_id}", json=update_data, headers=headers2)
-        assert response.status_code in [401, 403]
 
-    def test_update_comment_unauthorized(self, client):
-        # Create user and comment
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        comment_data = {
-            "comment": "Owner's comment",
-            "post_id": post_id,
-            "parent_id": None
+    def test_update_comment_unauthorized(self, client, test_comment):
+        """Test updating comment without authentication"""
+        update_data = {
+            "comment": "Unauthorized update"
         }
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        comment_id = comment_resp.json()["id"]
-        # Try to update without auth
-        update_data = {"comment": "Unauthorized update"}
-        response = client.put(f"/comments/{comment_id}", json=update_data)
-        assert response.status_code in [401, 403]
+        response = client.put(f"/comments/{test_comment.id}", json=update_data)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
 
-    def test_delete_comment_success(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        comment_data = {
-            "comment": "To be deleted",
-            "post_id": post_id,
-            "parent_id": None
-        }
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        comment_id = comment_resp.json()["id"]
-        response = client.delete(f"/comments/{comment_id}", headers=headers)
+    def test_delete_comment_success(self, client, auth_headers, test_comment):
+        """Test successful comment deletion by owner"""
+        response = client.delete(f"/comments/{test_comment.id}", headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json()["detail"] == f"Comment with id {test_comment.id} and its replies have been deleted"
+        
+        # Verify comment is deleted
+        get_response = client.get(f"/comments/{test_comment.id}", headers=auth_headers)
+        assert get_response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_delete_comment_not_found(self, client, auth_headers):
+        """Test deleting a comment that doesn't exist"""
+        fake_id = "fake-comment-id"
+        response = client.delete(f"/comments/{fake_id}", headers=auth_headers)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Comment not found"
+
+    def test_delete_comment_not_owner(self, client, auth_headers_user2, test_comment):
+        """Test deleting a comment by someone who doesn't own it"""
+        response = client.delete(f"/comments/{test_comment.id}", headers=auth_headers_user2)
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.json()["detail"] == "You can only delete your own comments"
+
+    def test_delete_comment_unauthorized(self, client, test_comment):
+        """Test deleting comment without authentication"""
+        response = client.delete(f"/comments/{test_comment.id}")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_like_comment_success(self, client, auth_headers, test_comment):
+        """Test successful comment like"""
+        response = client.post(f"/comments/{test_comment.id}/like", headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["likes"] == 1
+        assert data["liked_by_current_user"] == True
+
+    def test_like_comment_already_liked(self, client, auth_headers, test_comment):
+        """Test liking a comment that's already liked (should unlike)"""
+        # First like
+        response1 = client.post(f"/comments/{test_comment.id}/like", headers=auth_headers)
+        assert response1.status_code == status.HTTP_200_OK
+        assert response1.json()["likes"] == 1
+        
+        # Second like should unlike
+        response2 = client.post(f"/comments/{test_comment.id}/like", headers=auth_headers)
+        assert response2.status_code == status.HTTP_200_OK
+        assert response2.json()["likes"] == 0
+        assert response2.json()["liked_by_current_user"] == False
+
+    def test_like_comment_not_found(self, client, auth_headers):
+        """Test liking a comment that doesn't exist"""
+        fake_id = "fake-comment-id"
+        response = client.post(f"/comments/{fake_id}/like", headers=auth_headers)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
+    def test_like_comment_unauthorized(self, client, test_comment):
+        """Test liking comment without authentication"""
+        response = client.post(f"/comments/{test_comment.id}/like")
+        assert response.status_code == status.HTTP_403_FORBIDDEN
+
+    def test_unlike_comment_success(self, client, auth_headers, test_comment):
+        """Test successful comment unlike"""
+        # First like the comment
+        like_response = client.post(f"/comments/{test_comment.id}/like", headers=auth_headers)
+        assert like_response.status_code == status.HTTP_200_OK
+        assert like_response.json()["likes"] == 1
+        
+        # Then unlike it
+        response = client.delete(f"/comments/{test_comment.id}/like", headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["likes"] == 0
+        assert data["liked_by_current_user"] == False
+
+    def test_unlike_comment_not_liked(self, client, auth_headers, test_comment):
+        """Test unliking a comment that's not liked"""
+        response = client.delete(f"/comments/{test_comment.id}/like", headers=auth_headers)
+        assert response.status_code == status.HTTP_200_OK
+        data = response.json()
+        assert data["likes"] == 0
+        assert data["liked_by_current_user"] == False
+
+    # --- SIMPLE TESTS ---
+    def test_comments_endpoint_simple(self, client, auth_headers, test_comment):
+        response = client.get("/comments", headers=auth_headers)
         assert response.status_code == 200
 
-    def test_delete_comment_with_replies(self, client):
-        headers, user_id, post_id = self.setup_user_and_post(client)
-        # Create parent comment
-        parent_data = {
-            "comment": "Parent comment",
-            "post_id": post_id,
-            "parent_id": None
-        }
-        parent_resp = client.post("/comments", json=parent_data, headers=headers)
-        parent_id = parent_resp.json()["id"]
-        # Create reply
-        reply_data = {
-            "comment": "Reply to be deleted",
-            "post_id": post_id,
-            "parent_id": parent_id
-        }
-        reply_resp = client.post("/comments", json=reply_data, headers=headers)
-        reply_id = reply_resp.json()["id"]
-        # Delete parent
-        response = client.delete(f"/comments/{parent_id}", headers=headers)
+    def test_comments_list_simple(self, client, auth_headers):
+        response = client.get("/comments", headers=auth_headers)
         assert response.status_code == 200
-
-    def test_get_comments_by_post_id_success(self, client):
-        # Create user, post, and comment via API
-        user_data = {"username": "testuser", "email": "test@example.com", "password": "testpassword"}
-        client.post("/users", json=user_data)
-        login = client.post("/users/login", json={"username": "testuser", "password": "testpassword"})
-        token = login.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        post_data = {"title": "Test Post", "content": "Test content", "image_url": "/static/default/default.jpeg"}
-        post_resp = client.post("/posts", data=post_data, headers=headers)
-        post_id = post_resp.json()["id"]
-        comment_data = {"comment": "Test comment", "post_id": post_id}
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        print("COMMENT CREATE RESPONSE:", comment_resp.status_code, comment_resp.json())
-        response = client.get(f"/comments/by_post/{post_id}", headers=headers)
-        print("GET COMMENTS BY POST RESPONSE:", response.status_code, response.json())
-        assert response.status_code in [200, 404]
-        if response.status_code == 200:
-            assert len(response.json()) == 1
-
-    def test_get_main_comments_by_post_id_success(self, client):
-        # Create user, post, and comment via API
-        user_data = {"username": "testuser", "email": "test@example.com", "password": "testpassword"}
-        client.post("/users", json=user_data)
-        login = client.post("/users/login", json={"username": "testuser", "password": "testpassword"})
-        token = login.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        post_data = {"title": "Test Post", "content": "Test content", "image_url": "/static/default/default.jpeg"}
-        post_resp = client.post("/posts", data=post_data, headers=headers)
-        post_id = post_resp.json()["id"]
-        comment_data = {"comment": "Test comment", "post_id": post_id}
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        print("COMMENT CREATE RESPONSE:", comment_resp.status_code, comment_resp.json())
-        response = client.get(f"/comments/main/{post_id}", headers=headers)
-        print("GET MAIN COMMENTS RESPONSE:", response.status_code, response.json())
-        assert response.status_code in [200, 404]
-        if response.status_code == 200:
-            assert len(response.json()) == 1
-
-    def test_get_replies_to_comment_success(self, client):
-        # Create user, post, parent comment, and reply via API
-        user_data = {"username": "testuser", "email": "test@example.com", "password": "testpassword"}
-        client.post("/users", json=user_data)
-        login = client.post("/users/login", json={"username": "testuser", "password": "testpassword"})
-        token = login.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        post_data = {"title": "Test Post", "content": "Test content", "image_url": "/static/default/default.jpeg"}
-        post_resp = client.post("/posts", data=post_data, headers=headers)
-        post_id = post_resp.json()["id"]
-        parent_data = {"comment": "Parent comment", "post_id": post_id}
-        parent_resp = client.post("/comments", json=parent_data, headers=headers)
-        parent_id = parent_resp.json()["id"]
-        reply_data = {"comment": "Reply to test comment", "post_id": post_id, "parent_id": parent_id}
-        reply_resp = client.post("/comments", json=reply_data, headers=headers)
-        print("REPLY CREATE RESPONSE:", reply_resp.status_code, reply_resp.json())
-        response = client.get(f"/comments/replies/{parent_id}", headers=headers)
-        print("GET REPLIES RESPONSE:", response.status_code, response.json())
-        assert response.status_code in [200, 404]
-        if response.status_code == 200:
-            assert len(response.json()) == 1
-
-    def test_like_comment_success(self, client):
-        # Create user, post, and comment via API
-        user_data = {"username": "testuser", "email": "test@example.com", "password": "testpassword"}
-        client.post("/users", json=user_data)
-        login = client.post("/users/login", json={"username": "testuser", "password": "testpassword"})
-        token = login.json()["access_token"]
-        headers = {"Authorization": f"Bearer {token}"}
-        post_data = {"title": "Test Post", "content": "Test content", "image_url": "/static/default/default.jpeg"}
-        post_resp = client.post("/posts", data=post_data, headers=headers)
-        post_id = post_resp.json()["id"]
-        comment_data = {"comment": "Test comment", "post_id": post_id}
-        comment_resp = client.post("/comments", json=comment_data, headers=headers)
-        comment_id = comment_resp.json()["id"]
-        response = client.post(f"/comments/{comment_id}/like", headers=headers)
-        assert response.status_code == 200
+        assert isinstance(response.json(), list)
 
     # Forum Comments Tests
     def test_get_forum_comments_success(self, client, auth_headers, test_forum):

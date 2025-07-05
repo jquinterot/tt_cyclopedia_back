@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
-postgres_db = os.getenv("SQL_DB")
+# Prioritize TEST_SQL_DB for tests, otherwise use SQL_DB for production
+postgres_db = os.getenv("TEST_SQL_DB") or os.getenv("SQL_DB")
 if not postgres_db:
-    raise ValueError("SQL_DB environment variable must be set")
+    raise ValueError("Either TEST_SQL_DB or SQL_DB environment variable must be set")
 
 engine = create_engine(
     postgres_db,

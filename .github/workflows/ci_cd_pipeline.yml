@@ -65,4 +65,4 @@ jobs:
           echo "Test database cleaned up"
 
       - name: Run unit tests
-        run: poetry run pytest app/tests/test_users.py::TestSetup app/tests/test_posts.py::TestSetup app/tests/test_forums.py::TestSetup app/tests/test_comments.py::TestSetup --maxfail=10 --disable-warnings -q
+        run: poetry run pytest app/tests/*.py::TestSetup --maxfail=10 --disable-warnings -q

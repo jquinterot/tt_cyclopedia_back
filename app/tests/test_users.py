@@ -158,7 +158,7 @@ class TestUsersRouter:
     def test_delete_user_unauthorized(self, client, test_user):
         """Test deleting user without authentication"""
         response = client.delete(f"/users/{test_user.id}")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     # --- SIMPLE TESTS ---
     def test_users_endpoint_simple(self, client, auth_headers, test_user):

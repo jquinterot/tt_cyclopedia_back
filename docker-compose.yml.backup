@@ -47,24 +47,19 @@ services:
       retries: 5
 
   test:
-    build: 
-      context: .
-      dockerfile: Dockerfile
-      target: test
+    build: .
     environment:
-      DOCKER_ENV: "true"
-      SQL_DB: "sqlite:///:memory:"
-      SQL_LITE_DB: "sqlite:///:memory:"
-      TEST_SQL_DB: "sqlite:///:memory:"
-      MONGO_DB: "mongodb://dummy"
-      MONGO_DB_NAME: "tt_cyclopedia"
-      JWT_SECRET_KEY: "test_secret_key_for_docker_tests"
-      CLOUDINARY_CLOUD_NAME: "test_cloud_name"
-      CLOUDINARY_API_KEY: "test_api_key"
-      CLOUDINARY_API_SECRET: "test_api_secret"
-      ENVIRONMENT: "development"
-    command: python3 -m pytest app/tests/ -v --tb=short
+      - DOCKER_ENV=true
+      - SQL_LITE_DB=sqlite:///:memory:
+      - JWT_SECRET_KEY=test_secret_key_for_docker_tests
+      - ENVIRONMENT=development
+      - CLOUDINARY_CLOUD_NAME=test_cloud_name
+      - CLOUDINARY_API_KEY=test_api_key
+      - CLOUDINARY_API_SECRET=test_api_secret
+    command: sh -c "python3 -m pytest app/tests/ --maxfail=10 --disable-warnings -q"
+    volumes:
+      - .:/app
 
 volumes:
   postgres_data:
-  mongo_data: 
+  mongo_data:

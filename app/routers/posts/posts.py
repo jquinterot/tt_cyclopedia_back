@@ -10,18 +10,13 @@ from typing import List, Optional
 from app.auth.dependencies import get_current_user
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
-from app.config.image_config import UPLOAD_DIR
+from app.config.cloudinary_config import upload_image, delete_image_from_cloudinary, ALLOWED_TYPES, MAX_FILE_SIZE, DEFAULT_IMAGE_URL
 import shortuuid
-import shutil
 import json
 
 router = APIRouter(prefix="/posts")
 
-# Configuration
-UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
-DEFAULT_IMAGE_URL = "/static/default/default.jpeg"  # Ensure this path is correct
-ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
-MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+# Configuration - Using Cloudinary for image storage
 
 
 class Config:
@@ -129,15 +124,14 @@ async def create_post(
                     )
             image.file.seek(0)
 
-            file_ext = image.filename.split(".")[-1]
-            filename = f"{shortuuid.uuid()}.{file_ext}"
-            file_path = UPLOAD_DIR / filename
-
-            # Save file
-            with open(file_path, "wb") as buffer:
-                shutil.copyfileobj(image.file, buffer)
-
-            image_url = f"/static/uploads/{filename}"
+            # Upload using environment-based logic
+            try:
+                image_url = upload_image(image.file)
+            except Exception as e:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to upload image: {str(e)}"
+                )
 
         new_post = Posts(
             title=title,
@@ -211,10 +205,8 @@ def delete_all_posts(
 
         for post in posts:
             if not is_default_image(getattr(post, 'image_url', '')):
-                filename = post.image_url.split("/")[-1]
-                file_path = UPLOAD_DIR / filename
-                if file_path.exists():
-                    file_path.unlink()
+                # Delete from Cloudinary
+                delete_image_from_cloudinary(post.image_url)
 
         db.query(Posts).delete()
         db.commit()
@@ -226,6 +218,11 @@ def delete_all_posts(
 
 @router.post("/{post_id}/like", status_code=204)
 def like_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    # Check if post exists
+    post = db.query(Posts).filter(Posts.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
     like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
     if like:
         raise HTTPException(status_code=400, detail="Already liked")
@@ -236,6 +233,11 @@ def like_post(post_id: str, db: Session = Depends(get_db), current_user: Users =
 
 @router.delete("/{post_id}/like", status_code=204)
 def unlike_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
+    # Check if post exists
+    post = db.query(Posts).filter(Posts.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
     like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
     if not like:
         raise HTTPException(status_code=400, detail="Not liked yet")
@@ -246,5 +248,10 @@ def unlike_post(post_id: str, db: Session = Depends(get_db), current_user: Users
 
 @router.get("/{post_id}/likes", status_code=200)
 def get_post_likes(post_id: str, db: Session = Depends(get_db)):
+    # Check if post exists
+    post = db.query(Posts).filter(Posts.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    
     likes = db.query(PostLike).filter_by(post_id=post_id).all()
     return [{"user_id": like.user_id, "created_at": like.created_at} for like in likes]

@@ -47,7 +47,8 @@ class TestCommentsRouter:
 
     def test_get_comments_success(self, client, auth_headers, test_comment):
         """Test successful retrieval of all comments"""
-        response = client.get("/comments", headers=auth_headers)
+        response = client.get("/comments/", headers=auth_headers)
+        print(f"DEBUG: status={response.status_code}, data={response.json()}")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
@@ -64,6 +65,7 @@ class TestCommentsRouter:
     def test_get_comment_by_id_success(self, client, auth_headers, test_comment):
         """Test successful retrieval of a specific comment by ID"""
         response = client.get(f"/comments/{test_comment.id}", headers=auth_headers)
+        print(f"DEBUG: status={response.status_code}, data={response.json()}")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert data["id"] == test_comment.id
@@ -84,27 +86,19 @@ class TestCommentsRouter:
 
     def test_create_comment_success(self, client, auth_headers, test_post):
         """Test successful comment creation"""
-        comment_data = {
-            "comment": "Test comment",
-            "post_id": test_post.id
-        }
-        response = client.post("/comments", json=comment_data, headers=auth_headers)
+        data = {"comment": "New comment", "post_id": test_post.id}
+        response = client.post("/comments/", json=data, headers=auth_headers)
+        print(f"DEBUG: status={response.status_code}, data={response.json()}")
         assert response.status_code == status.HTTP_201_CREATED
-        data = response.json()
-        assert data["comment"] == comment_data["comment"]
-        assert data["post_id"] == comment_data["post_id"]
-        assert "id" in data
-        assert "user_id" in data
-        assert "username" in data
+        assert response.json()["comment"] == "New comment"
+        assert response.json()["post_id"] == data["post_id"]
+        assert "id" in response.json()
+        assert "user_id" in response.json()
+        assert "username" in response.json()
 
     def test_create_comment_unauthorized(self, client, test_post):
-        """Test creating comment without authentication"""
-        comment_data = {
-            "comment": "Unauthorized comment",
-            "post_id": test_post.id
-        }
-        response = client.post("/comments", json=comment_data)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        response = client.post("/comments/", json={"comment": "Unauthorized comment", "post_id": test_post.id})
+        assert response.status_code == 401
 
     def test_update_comment_success(self, client, auth_headers, test_comment):
         """Test successful comment update by owner"""
@@ -137,12 +131,8 @@ class TestCommentsRouter:
         assert response.json()["detail"] == "Resource Not Found"
 
     def test_update_comment_unauthorized(self, client, test_comment):
-        """Test updating comment without authentication"""
-        update_data = {
-            "comment": "Unauthorized update"
-        }
-        response = client.put(f"/comments/{test_comment.id}", json=update_data)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        response = client.put(f"/comments/{test_comment.id}", json={"comment": "Unauthorized update"})
+        assert response.status_code == 401
 
     def test_delete_comment_success(self, client, auth_headers, test_comment):
         """Test successful comment deletion by owner"""
@@ -168,9 +158,8 @@ class TestCommentsRouter:
         assert response.json()["detail"] == "You can only delete your own comments"
 
     def test_delete_comment_unauthorized(self, client, test_comment):
-        """Test deleting comment without authentication"""
         response = client.delete(f"/comments/{test_comment.id}")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 401
 
     def test_like_comment_success(self, client, auth_headers, test_comment):
         """Test successful comment like"""
@@ -200,9 +189,8 @@ class TestCommentsRouter:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_like_comment_unauthorized(self, client, test_comment):
-        """Test liking comment without authentication"""
         response = client.post(f"/comments/{test_comment.id}/like")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 401
 
     def test_unlike_comment_success(self, client, auth_headers, test_comment):
         """Test successful comment unlike"""

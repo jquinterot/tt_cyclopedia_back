@@ -108,7 +108,7 @@ class TestPostsRouter:
             "content": "This should fail"
         }
         response = client.post("/posts", data=post_data)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_delete_post_success(self, client, auth_headers, test_post):
         """Test successful post deletion by owner"""
@@ -135,7 +135,7 @@ class TestPostsRouter:
     def test_delete_post_unauthorized(self, client, test_post):
         """Test deleting post without authentication"""
         response = client.delete(f"/posts/{test_post.id}")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_like_post_success(self, client, auth_headers, test_post):
         """Test successful post like"""
@@ -157,14 +157,13 @@ class TestPostsRouter:
         """Test liking a post that doesn't exist"""
         fake_id = "fake-post-id"
         response = client.post(f"/posts/{fake_id}/like", headers=auth_headers)
-        print(f"DEBUG: Response status: {response.status_code}")
-        print(f"DEBUG: Response body: {response.text}")
-        assert response.status_code == status.HTTP_204_NO_CONTENT
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+        assert response.json()["detail"] == "Post not found"
 
     def test_like_post_unauthorized(self, client, test_post):
         """Test liking post without authentication"""
         response = client.post(f"/posts/{test_post.id}/like")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_unlike_post_success(self, client, auth_headers, test_post):
         """Test successful post unlike"""

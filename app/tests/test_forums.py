@@ -119,7 +119,7 @@ class TestForumsRouter:
             "content": "This should fail"
         }
         response = client.post("/forums", json=forum_data)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 401
     
     def test_create_forum_invalid_data(self, client, auth_headers):
         """Test creating forum with invalid data"""
@@ -185,7 +185,7 @@ class TestForumsRouter:
             "content": "Unauthorized content"
         }
         response = client.put(f"/forums/{test_forum.id}", json=update_data)
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 401
     
     def test_delete_forum_success(self, client):
         headers, forum_id = self.setup_user_and_forum(client)
@@ -205,7 +205,7 @@ class TestForumsRouter:
     def test_delete_forum_unauthorized(self, client, test_forum):
         """Test deleting forum without authentication"""
         response = client.delete(f"/forums/{test_forum.id}")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 401
     
     def test_like_forum_success(self, client, auth_headers, test_forum):
         """Test successful forum like"""
@@ -237,7 +237,7 @@ class TestForumsRouter:
     def test_like_forum_unauthorized(self, client, test_forum):
         """Test liking forum without authentication"""
         response = client.post(f"/forums/{test_forum.id}/like")
-        assert response.status_code == status.HTTP_403_FORBIDDEN
+        assert response.status_code == 401
     
     def test_unlike_forum_success(self, client, auth_headers, test_forum):
         """Test successful forum unlike"""

@@ -3,13 +3,71 @@ name: CI/CD Pipeline
 on: push
 
 jobs:
-  build-and-deploy:
+  test:
     runs-on: ubuntu-latest
     env:
+      # Test Database Configuration (SQLite in-memory for speed)
+      SQL_DB: "sqlite:///:memory:"
+      SQL_LITE_DB: "sqlite:///:memory:"
+      TEST_SQL_DB: "sqlite:///:memory:"
+      
+      # MongoDB Configuration (dummy for tests)
+      MONGO_DB: "mongodb://dummy"
+      MONGO_DB_NAME: tt_cyclopedia
+      
+      # JWT Configuration
+      JWT_SECRET_KEY: "test_secret_key_for_ci_tests"
+      ALGORITHM: "HS256"
+      
+      # Environment
+      ENVIRONMENT: "development"
+      DOCKER_ENV: "false"
+
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install Poetry
+        run: python -m pip install poetry
+
+      - name: Install dependencies with Poetry
+        run: poetry install
+
+      - name: Create static directory
+        run: mkdir -p static/default
+
+      - name: Run all tests with Poetry
+        run: poetry run pytest app/tests/ -v --tb=short
+
+      - name: Run tests with coverage (optional)
+        run: poetry run pytest app/tests/ --cov=app --cov-report=xml --cov-report=term-missing
+
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    env:
+      # Database Configuration
       SQL_DB: "postgresql://postgres:postgres@db:5432/tt_cyclopedia"
       TEST_SQL_DB: "sqlite:///./test.db"
+      
+      # MongoDB Configuration
       MONGO_DB: "mongodb://mongo:27017"
       MONGO_DB_NAME: tt_cyclopedia
+      
+      # JWT Configuration
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+      ALGORITHM: "HS256"
+      
+      # Environment
+      ENVIRONMENT: "development"
+      DOCKER_ENV: "true"
+      
 
     steps:
       - uses: actions/checkout@v4
@@ -59,10 +117,34 @@ jobs:
         run: |
           docker logs $(docker ps -qf "name=db") || echo "No db logs yet"
 
+      - name: Wait for MongoDB to be ready
+        run: |
+          for i in {1..30}; do
+            if docker exec $(docker ps -qf "name=mongo") mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+              echo "MongoDB is ready!"
+              exit 0
+            fi
+            echo "Waiting for MongoDB... ($i/30)"
+            sleep 5
+          done
+          echo "MongoDB did not become ready in time"
+          docker logs $(docker ps -qf "name=mongo")
+          exit 1
+
       - name: Clean up test database
         run: |
           rm -f test.db
           echo "Test database cleaned up"
 
+      - name: Create uploads directory for local storage
+        run: |
+          mkdir -p static/uploads
+          echo "Uploads directory created for local file storage"
+
       - name: Run unit tests
-        run: poetry run pytest app/tests/*.py::TestSetup --maxfail=10 --disable-warnings -q
+        run: poetry run pytest app/tests/test_users.py::TestSetup app/tests/test_posts.py::TestSetup app/tests/test_forums.py::TestSetup app/tests/test_comments.py::TestSetup --maxfail=10 --disable-warnings -q
+
+      - name: Clean up uploaded files
+        run: |
+          rm -rf static/uploads/*
+          echo "Uploaded files cleaned up"

@@ -1,5 +1,7 @@
 # TT Cyclopedia Backend
 
+This is a placeholder README to satisfy Poetry's packaging requirements during Docker builds.
+
 ## Commands
 
 **Run app:**

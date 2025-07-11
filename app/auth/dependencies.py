@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Request
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.config.postgres_config import SessionLocal
@@ -6,7 +6,7 @@ from app.routers.users.models import Users
 from app.auth.jwt_handler import jwt_handler
 from typing import Optional
 
-security = HTTPBearer()
+security = HTTPBearer(auto_error=False)  # Don't auto-raise on missing token
 
 def get_db():
     db = SessionLocal()
@@ -23,6 +23,12 @@ async def get_current_user(
     Get the current authenticated user from JWT token.
     This function is used as a dependency for protected endpoints.
     """
+    if not credentials:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Authentication required",
+        )
+    
     try:
         # Verify the token and get username
         username = jwt_handler.verify_token(credentials.credentials)

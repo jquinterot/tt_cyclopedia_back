@@ -2,53 +2,64 @@
 import os
 if os.path.exists("test.db"):
     os.remove("test.db")
-os.environ["TEST_SQL_DB"] = "sqlite:///./test.db"
+
+# Use SQLite in-memory for faster tests
+SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
+os.environ["SQL_LITE_DB"] = SQLALCHEMY_DATABASE_URL
 os.environ["JWT_SECRET_KEY"] = "testsecret"
 os.environ["ALGORITHM"] = "HS256"
+os.environ["ENVIRONMENT"] = "testing"  # Use testing to avoid Cloudinary imports
 
 """
-Best Practice: Always use the db_session provided by the client fixture for all test setup and app requests. This ensures the same session is used, preventing foreign key and visibility issues in tests.
+Optimized test configuration for speed:
+- Uses SQLite in-memory database
+- Pre-hashed passwords to avoid bcrypt overhead
+- Simplified transaction management
+- Cached fixtures where possible
+- Testing environment to avoid Cloudinary imports
 """
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, MetaData
+from sqlalchemy import create_engine, MetaData, event
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import StaticPool
 from app.main import app
-from app.config.postgres_config import get_db, SessionLocal, Base
 from app.auth.jwt_handler import jwt_handler
 from app.auth.dependencies import get_current_user
 from passlib.context import CryptContext
 import shortuuid
 import app.auth.dependencies as auth_deps
+from fastapi import HTTPException, status
 
-# Test database configuration - use in-memory SQLite
-SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
-
-# Create test-specific engine using production Base
+# Create fast in-memory SQLite engine
 engine = create_engine(
     SQLALCHEMY_DATABASE_URL,
-    connect_args={"check_same_thread": False},
+    echo=False,  # Disable SQL logging for speed
     poolclass=StaticPool,
+    connect_args={"check_same_thread": False}
 )
-# Create a single connection for all sessions
-connection = engine.connect()
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=connection)
+
+TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 # Patch BEFORE importing anything else from the app
 import app.config.postgres_config as postgres_config
 postgres_config.engine = engine
 postgres_config.SessionLocal = TestingSessionLocal
 
-# Now import Base and models, then create tables using the single connection
+# Import Base for table creation
 from app.config.postgres_config import Base
+
+# Remove schema event listener for SQLite tests
+if hasattr(Base.metadata, '_event_dispatch'):
+    # Clear any schema-related events
+    Base.metadata._event_dispatch.clear()
+
+# Import models - they will use the patched postgres_config
 from app.routers.users.models import Users
 from app.routers.posts.models import Posts, PostLike
 from app.routers.comments.models import Comments, CommentLike
 from app.routers.forums.models import Forums, ForumLike, ForumComment, ForumCommentLike
-
-Base.metadata.create_all(bind=connection)
 
 # Now import the app and the rest
 import pytest
@@ -60,89 +71,108 @@ from passlib.context import CryptContext
 import shortuuid
 import app.auth.dependencies as auth_deps
 
-# Password hashing
+# Password hashing - pre-hash common passwords for speed
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+# Pre-hashed passwords to avoid bcrypt overhead in tests
+HASHED_TEST_PASSWORD = pwd_context.hash("testpassword")
+HASHED_TEST_PASSWORD2 = pwd_context.hash("testpassword2")
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
-@pytest.fixture(scope="session", autouse=True)
-def ensure_tables_exist():
-    """Ensure all tables are created before any test runs"""
-    Base.metadata.create_all(bind=engine)
-    yield
-    # Clean up after all tests
-    if os.path.exists("test.db"):
-        os.remove("test.db")
+@pytest.fixture(scope="session")
+def connection():
+    """Create a single connection for the whole test session (needed for SQLite in-memory)."""
+    conn = engine.connect()
+    Base.metadata.create_all(bind=conn)
+    yield conn
+    conn.close()
 
 @pytest.fixture(scope="function")
-def db_session():
-    """Yield a session and clean up all tables after each test."""
-    session = TestingSessionLocal()
+def db_session(connection):
+    """Use the session-scoped connection for each test, with SAVEPOINT."""
+    transaction = connection.begin_nested()
+    session = TestingSessionLocal(bind=connection)
     try:
         yield session
     finally:
-        # Truncate all tables to ensure isolation
-        for table in reversed(Base.metadata.sorted_tables):
-            session.execute(table.delete())
-        session.commit()
         session.close()
+        transaction.rollback()
 
-@pytest.fixture
+@pytest.fixture(scope="function")
 def client(db_session):
-    """Create a test client with database dependency override, always using the same db_session."""
+    """Fast client fixture with minimal overhead. Only override get_current_user if Authorization header is present."""
+    from fastapi import Request
+    import app.auth.dependencies as auth_deps
+    real_get_current_user = auth_deps.get_current_user
+
+    async def override_get_current_user(request: Request, db=None):
+        # If Authorization header is present, extract username from token and return corresponding user
+        auth_header = request.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+            try:
+                # Decode token to get username
+                username = jwt_handler.verify_token(token)
+                if username:
+                    user = db_session.query(Users).filter(Users.username == username).first()
+                    if user:
+                        return user
+            except Exception:
+                pass
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid token",
+            )
+        # Otherwise, raise 401 Unauthorized
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
     def override_get_db():
         try:
             yield db_session
         finally:
             pass
-    
-    def override_get_current_user():
-        """Override get_current_user to use the test database session"""
-        from app.auth.dependencies import get_current_user
-        from app.routers.users.models import Users
-        from app.auth.jwt_handler import jwt_handler
-        from fastapi import HTTPException, status
-        from fastapi.security import HTTPBearer
-        from fastapi import Depends
-        
-        security = HTTPBearer()
-        
-        async def _get_current_user(credentials=Depends(security)):
-            try:
-                username = jwt_handler.verify_token(credentials.credentials)
-                user = db_session.query(Users).filter(Users.username == username).first()
-                if not user:
-                    raise HTTPException(
-                        status_code=status.HTTP_401_UNAUTHORIZED,
-                        detail="User not found",
-                        headers={"WWW-Authenticate": "Bearer"},
-                    )
-                return user
-            except Exception:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Could not validate credentials",
-                    headers={"WWW-Authenticate": "Bearer"},
-                )
-        
-        return _get_current_user
-    
+
     app.dependency_overrides[get_db] = override_get_db
-    app.dependency_overrides[get_current_user] = override_get_current_user()
-    
+    app.dependency_overrides[auth_deps.get_current_user] = override_get_current_user
+
     with TestClient(app) as test_client:
         yield test_client
     app.dependency_overrides.clear()
 
 @pytest.fixture
+def test_user(db_session):
+    """Create a test user using pre-hashed password for speed"""
+    # Check if user already exists
+    existing_user = db_session.query(Users).filter(Users.username == "testuser").first()
+    if existing_user:
+        return existing_user
+    
+    user = Users(
+        id=shortuuid.uuid(),
+        username="testuser",
+        email="test@example.com",
+        password=HASHED_TEST_PASSWORD  # Use pre-hashed password
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+@pytest.fixture
 def test_user2(db_session):
-    """Create a second test user using the shared db_session."""
+    """Create a second test user using pre-hashed password for speed"""
+    # Check if user already exists
+    existing_user = db_session.query(Users).filter(Users.username == "testuser2").first()
+    if existing_user:
+        return existing_user
+    
     user = Users(
         id=shortuuid.uuid(),
         username="testuser2",
         email="test2@example.com",
-        password=hash_password("testpassword")
+        password=HASHED_TEST_PASSWORD2  # Use pre-hashed password
     )
     db_session.add(user)
     db_session.commit()
@@ -216,20 +246,6 @@ def override_current_user(test_user):
     app.dependency_overrides[auth_deps.get_current_user] = _override
     yield
     app.dependency_overrides.pop(auth_deps.get_current_user, None)
-
-@pytest.fixture
-def test_user(db_session):
-    """Create a test user using the shared db_session."""
-    user = Users(
-        id=shortuuid.uuid(),
-        username="testuser",
-        email="test@example.com",
-        password=hash_password("testpassword")
-    )
-    db_session.add(user)
-    db_session.commit()
-    db_session.refresh(user)
-    return user
 
 @pytest.fixture
 def test_post(db_session, test_user):

@@ -8,6 +8,7 @@ from app.routers.forums.forums import router as forums_router
 from fastapi.staticfiles import StaticFiles
 from app.middleware.log_to_mongo import MongoLoggingMiddleware
 from app.routers.logs.logs import router as logs_router
+from app.config.postgres_config import Base, attach_schema_event
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -18,9 +19,22 @@ app = FastAPI(lifespan=lifespan)
 # Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
-    allow_methods=['*'],
-    allow_headers=['*'],
+    allow_origins=[
+        "http://localhost:3000",  # React default
+        "http://localhost:3001",  # Alternative React port
+        "http://localhost:5173",  # Vite default
+        "http://localhost:8080",  # Vue default
+        "http://localhost:4200",  # Angular default
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8080",
+        "http://127.0.0.1:4200",
+        "*"  # Allow all origins for development
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.add_middleware(MongoLoggingMiddleware)

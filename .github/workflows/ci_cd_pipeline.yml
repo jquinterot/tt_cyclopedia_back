@@ -45,9 +45,6 @@ jobs:
       - name: Run all tests with Poetry
         run: poetry run pytest app/tests/ -v --tb=short
 
-      - name: Run tests with coverage (optional)
-        run: poetry run pytest app/tests/ --cov=app --cov-report=xml --cov-report=term-missing
-
   build-and-deploy:
     runs-on: ubuntu-latest
     needs: test

@@ -32,8 +32,8 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 def upload_image(file, folder="cyclopedia_uploads"):
-    if ENVIRONMENT in ["development", "testing"]:
-        # Save locally
+    if ENVIRONMENT == "development":
+        # Save locally only for development
         from pathlib import Path
         uploads_dir = Path("static/uploads")
         uploads_dir.mkdir(parents=True, exist_ok=True)
@@ -41,8 +41,11 @@ def upload_image(file, folder="cyclopedia_uploads"):
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
         return f"/static/uploads/{file.filename}"
+    elif ENVIRONMENT == "testing":
+        # For testing, return a mock path
+        return f"/static/uploads/{file.filename}"
     else:
-        # Upload to Cloudinary
+        # Upload to Cloudinary for production and any other environment
         return upload_image_to_cloudinary(file.file, filename=file.filename, folder=folder)
 
 def upload_image_to_cloudinary(file, filename=None, folder="cyclopedia_uploads"):

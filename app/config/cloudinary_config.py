@@ -12,19 +12,19 @@ DEFAULT_IMAGE_URL = os.getenv("DEFAULT_IMAGE_URL", "/static/default/default.jpeg
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 if ENVIRONMENT != "testing":
     try:
-        import cloudinary
-        import cloudinary.uploader
-        import cloudinary.api
+        import cloudinary  # type: ignore
+        import cloudinary.uploader  # type: ignore
+        import cloudinary.api  # type: ignore
         
         # Configure Cloudinary if credentials are present
         if CLOUDINARY_URL:
-            cloudinary.config(url=CLOUDINARY_URL)
+            cloudinary.config(url=CLOUDINARY_URL)  # type: ignore
         elif all([CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET]):
             cloudinary.config(
                 cloud_name=CLOUDINARY_CLOUD_NAME,
                 api_key=CLOUDINARY_API_KEY,
                 api_secret=CLOUDINARY_API_SECRET
-            )
+            )  # type: ignore
     except ImportError:
         print("Warning: Cloudinary not available. Using local storage only.")
 
@@ -43,19 +43,19 @@ def upload_image(file, folder="cyclopedia_uploads"):
         return f"/static/uploads/{file.filename}"
     else:
         # Upload to Cloudinary
-        return upload_image_to_cloudinary(file, folder=folder)
+        return upload_image_to_cloudinary(file.file, filename=file.filename, folder=folder)
 
-def upload_image_to_cloudinary(file, folder="cyclopedia_uploads"):
+def upload_image_to_cloudinary(file, filename=None, folder="cyclopedia_uploads"):
     if ENVIRONMENT == "testing":
         # In testing, just return local path
-        return f"/static/uploads/{file.filename}"
-    
+        return f"/static/uploads/{filename or 'uploaded_image'}"
     try:
-        import cloudinary.uploader
+        import cloudinary.uploader  # type: ignore
         result = cloudinary.uploader.upload(
             file,
             folder=folder,
             resource_type="image",
+            public_id=filename,
             transformation=[
                 {"quality": "auto", "fetch_format": "auto"}
             ]
@@ -68,7 +68,6 @@ def delete_image_from_cloudinary(public_id):
     if ENVIRONMENT == "testing":
         # In testing, do nothing
         return
-    
     try:
         if public_id and not public_id.startswith("/static/default/"):
             if public_id.startswith("http"):
@@ -76,7 +75,7 @@ def delete_image_from_cloudinary(public_id):
                 if "cyclopedia_uploads" in parts:
                     upload_index = parts.index("cyclopedia_uploads")
                     public_id = "/".join(parts[upload_index:-1]) + "/" + parts[-1].split(".")[0]
-            import cloudinary.uploader
+            import cloudinary.uploader  # type: ignore
             cloudinary.uploader.destroy(public_id)
     except Exception as e:
         print(f"Failed to delete image from Cloudinary: {str(e)}")

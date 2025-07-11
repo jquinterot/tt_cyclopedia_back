@@ -126,7 +126,7 @@ async def create_post(
 
             # Upload using environment-based logic
             try:
-                image_url = upload_image(image.file)
+                image_url = upload_image(image)
             except Exception as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

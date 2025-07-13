@@ -35,7 +35,7 @@ def connect_to_mongo(mongo_url, db_name):
         db = client[db_name]
         return client, db
     except Exception as e:
-        print(f"❌ Failed to connect to MongoDB: {str(e)}")
+        print(f" Failed to connect to MongoDB: {str(e)}")
         return None, None
 
 def show_database_info(db):

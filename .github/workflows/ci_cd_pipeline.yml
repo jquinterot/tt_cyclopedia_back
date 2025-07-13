@@ -42,8 +42,9 @@ jobs:
       - name: Create static directory
         run: mkdir -p static/default
 
-      - name: Run all tests with Poetry
-        run: poetry run pytest app/tests/ -v --tb=short
+      - name: Run tests with Docker (same as local Docker)
+        run: |
+          docker-compose run --rm test
 
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -138,8 +139,8 @@ jobs:
           mkdir -p static/uploads
           echo "Uploads directory created for local file storage"
 
-      - name: Run unit tests
-        run: poetry run pytest app/tests/test_users.py::TestSetup app/tests/test_posts.py::TestSetup app/tests/test_forums.py::TestSetup app/tests/test_comments.py::TestSetup --maxfail=10 --disable-warnings -q
+      - name: Run unit tests with Docker
+        run: docker-compose run --rm test
 
       - name: Clean up uploaded files
         run: |

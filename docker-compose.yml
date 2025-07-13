@@ -41,7 +41,7 @@ services:
     volumes:
       - mongo_data:/data/db
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -51,19 +51,26 @@ services:
       context: .
       dockerfile: Dockerfile
       target: test
+    depends_on:
+      db:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
     environment:
       DOCKER_ENV: "true"
-      SQL_DB: "sqlite:///:memory:"
+      SQL_DB: "postgresql://postgres:postgres@db:5432/tt_cyclopedia"
       SQL_LITE_DB: "sqlite:///:memory:"
       TEST_SQL_DB: "sqlite:///:memory:"
-      MONGO_DB: "mongodb://dummy"
+      MONGO_DB: "mongodb://mongo:27017"
       MONGO_DB_NAME: "tt_cyclopedia"
       JWT_SECRET_KEY: "test_secret_key_for_docker_tests"
       CLOUDINARY_CLOUD_NAME: "test_cloud_name"
       CLOUDINARY_API_KEY: "test_api_key"
       CLOUDINARY_API_SECRET: "test_api_secret"
       ENVIRONMENT: "development"
-    command: python3 -m pytest app/tests/ -v --tb=short
+    volumes:
+      - .:/app
+    command: python3 -m pytest app/tests/ -v --tb=short --maxfail=1
 
 volumes:
   postgres_data:

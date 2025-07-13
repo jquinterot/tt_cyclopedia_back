@@ -70,7 +70,7 @@ services:
       ENVIRONMENT: "development"
     volumes:
       - .:/app
-    command: python3 -m pytest app/tests/ -v --tb=short --maxfail=1
+    command: /bin/sh -c "alembic upgrade head && python3 -m pytest app/tests/ -v --tb=short --maxfail=1"
 
 volumes:
   postgres_data:

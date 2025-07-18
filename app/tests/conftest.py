@@ -9,12 +9,10 @@ def client():
 
 @pytest.fixture(scope="session")
 def auth_headers():
-    # Dummy JWT for endpoints that require Authorization header
     return {"Authorization": "Bearer testtoken"}
 
 @pytest.fixture(scope="session")
 def test_user():
-    # Dummy user object for response structure tests
     class User:
         id = "dummyid"
         username = "dummyuser"

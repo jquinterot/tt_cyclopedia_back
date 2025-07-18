@@ -6,7 +6,7 @@ from app.routers.users.models import Users
 from app.auth.jwt_handler import jwt_handler
 from typing import Optional
 
-security = HTTPBearer(auto_error=False)  # Don't auto-raise on missing token
+security = HTTPBearer(auto_error=False)
 
 def get_db():
     db = SessionLocal()
@@ -19,21 +19,13 @@ async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
     db: Session = Depends(get_db)
 ) -> Users:
-    """
-    Get the current authenticated user from JWT token.
-    This function is used as a dependency for protected endpoints.
-    """
     if not credentials:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authentication required",
         )
-    
     try:
-        # Verify the token and get username
         username = jwt_handler.verify_token(credentials.credentials)
-        
-        # Get user from database
         user = db.query(Users).filter(Users.username == username).first()
         if not user:
             raise HTTPException(
@@ -55,13 +47,8 @@ async def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
     db: Session = Depends(get_db)
 ) -> Optional[Users]:
-    """
-    Get the current authenticated user if token is provided, otherwise return None.
-    This allows for optional authentication on some endpoints.
-    """
     if not credentials:
         return None
-    
     try:
         username = jwt_handler.verify_token(credentials.credentials)
         user = db.query(Users).filter(Users.username == username).first()

@@ -14,6 +14,5 @@ class Users(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
     comments = relationship("Comments", back_populates="users")
     if schema_kwargs:
-        __table_args__ = schema_kwargs  # type: ignore
-    ## Add password field, add email field, name, last name, birth date,
+        __table_args__ = schema_kwargs
 

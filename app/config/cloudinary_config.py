@@ -1,4 +1,5 @@
 import os
+import re
 from .environment import EnvironmentConfig
 
 # Read all config from environment variables
@@ -7,6 +8,20 @@ CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
 CLOUDINARY_URL = os.getenv("CLOUDINARY_URL")
 DEFAULT_IMAGE_URL = os.getenv("DEFAULT_IMAGE_URL", "/static/default/default.jpeg")
+
+def _sanitize_filename(filename: str) -> str:
+    """Sanitize filename to prevent path traversal attacks."""
+    if not filename:
+        return "unnamed"
+    # Remove path separators and null bytes
+    filename = os.path.basename(filename)
+    filename = filename.replace("\x00", "")
+    # Only allow safe characters
+    filename = re.sub(r"[^a-zA-Z0-9_.-]", "_", filename)
+    # Ensure it has an extension
+    if "." not in filename:
+        filename += ".jpg"
+    return filename
 
 # Only import cloudinary if not in testing
 ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
@@ -32,40 +47,42 @@ ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 def upload_image(file, folder="cyclopedia_uploads"):
+    safe_filename = _sanitize_filename(file.filename)
     if ENVIRONMENT == "development":
         # Save locally only for development
         from pathlib import Path
         uploads_dir = Path("static/uploads")
         uploads_dir.mkdir(parents=True, exist_ok=True)
-        file_path = uploads_dir / file.filename
+        file_path = uploads_dir / safe_filename
         with open(file_path, "wb") as buffer:
             buffer.write(file.file.read())
-        return f"/static/uploads/{file.filename}"
+        return f"/static/uploads/{safe_filename}"
     elif ENVIRONMENT == "testing":
         # For testing, return a mock path
-        return f"/static/uploads/{file.filename}"
+        return f"/static/uploads/{safe_filename}"
     else:
         # Upload to Cloudinary for production and any other environment
-        return upload_image_to_cloudinary(file.file, filename=file.filename, folder=folder)
+        return upload_image_to_cloudinary(file.file, filename=safe_filename, folder=folder)
 
 def upload_image_to_cloudinary(file, filename=None, folder="cyclopedia_uploads"):
+    safe_filename = _sanitize_filename(filename) if filename else "uploaded_image"
     if ENVIRONMENT == "testing":
         # In testing, just return local path
-        return f"/static/uploads/{filename or 'uploaded_image'}"
+        return f"/static/uploads/{safe_filename}"
     try:
         import cloudinary.uploader  # type: ignore
         result = cloudinary.uploader.upload(
             file,
             folder=folder,
             resource_type="image",
-            public_id=filename,
+            public_id=safe_filename,
             transformation=[
                 {"quality": "auto", "fetch_format": "auto"}
             ]
         )
         return result["secure_url"]
-    except Exception as e:
-        raise Exception(f"Failed to upload image to Cloudinary: {str(e)}")
+    except Exception:
+        raise Exception("Failed to upload image. Please try again.")
 
 def delete_image_from_cloudinary(public_id):
     if ENVIRONMENT == "testing":

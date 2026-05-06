@@ -8,7 +8,7 @@ from .models import Posts, PostLike
 from .schemas import PostResponse
 from app.routers.equipment.models import Equipment
 from typing import List, Optional
-from app.auth.dependencies import get_current_user, get_current_user_optional
+from app.auth.dependencies import get_current_user, get_current_user_optional, get_current_admin
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
 from app.config.cloudinary_config import upload_image, delete_image_from_cloudinary, ALLOWED_TYPES, MAX_FILE_SIZE, DEFAULT_IMAGE_URL
@@ -88,8 +88,8 @@ def get_post(post_id: str, db: Session = Depends(get_db), current_user: Users = 
 
 @router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
-        title: str = Form(...),
-        content: str = Form(...),
+        title: str = Form(..., min_length=1, max_length=200),
+        content: str = Form(..., min_length=1, max_length=50000),
         stats: str = Form(None),  # Accept as string
         equipment_id: str = Form(None),  # Optional equipment link
         image: UploadFile = File(None),
@@ -168,7 +168,10 @@ async def create_post(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Post with this title already exists"
         )
-    except Exception as e:
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -194,10 +197,9 @@ def delete_post(post_id: str, db: Session = Depends(get_db), current_user: Users
 
 @router.delete("/all", status_code=status.HTTP_204_NO_CONTENT)
 def delete_all_posts(
-    current_user: Users = Depends(get_current_user),
+    current_user: Users = Depends(get_current_admin),
     db: Session = Depends(get_db)
 ):
-    # Only allow admin users to delete all posts (you might want to add an admin field to users)
     try:
         posts = db.query(Posts).all()
 
@@ -209,9 +211,14 @@ def delete_all_posts(
         db.query(Posts).delete()
         db.commit()
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         db.rollback()
-        raise HTTPException(500, f"Error deleting posts: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error deleting posts. Please try again."
+        )
 
 
 @router.post("/{post_id}/like", response_model=PostResponse, status_code=200)

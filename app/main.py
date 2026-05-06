@@ -30,17 +30,17 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With"],
+    max_age=600,
 )
 
 # Security middlewares
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(MongoLoggingMiddleware)
 
-# Rate limiting - only in production
-if os.getenv("PRODUCTION", "false").lower() == "true":
-    app.add_middleware(WriteRateLimiterMiddleware)
+# Rate limiting in all environments
+app.add_middleware(WriteRateLimiterMiddleware)
 
 app.include_router(comments_router)
 app.include_router(posts_router)

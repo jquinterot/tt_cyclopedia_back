@@ -43,13 +43,13 @@ class TestComments:
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
-
+    
     def test_comments_response_structure(self, client, auth_headers):
         response = client.get("/comments", headers=auth_headers)
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
-
+    
     def test_comment_by_id_response_structure(self, client, auth_headers, test_comment):
         response = client.get(f"/comments/{test_comment.id}", headers=auth_headers)
         if response.status_code == status.HTTP_404_NOT_FOUND:

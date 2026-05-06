@@ -1,21 +1,16 @@
 from fastapi import APIRouter, status, Depends
 from fastapi.exceptions import HTTPException
-from sqlalchemy import null
 from sqlalchemy.orm import Session
 from .schemas import Comment, CommentCreate, CommentUpdate
 from .models import Comments, CommentLike
 from typing import List
-from app.auth.dependencies import get_current_user
+from app.middleware.rate_limiter import rate_limit, WRITE_LIMITER
+from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
 import shortuuid
 
-router = APIRouter(prefix="/comments",
-                   )
-
-
-class Config:
-    orm_mode = True
+router = APIRouter(prefix="/comments")
 
 
 @router.get("", response_model=List[Comment], status_code=status.HTTP_200_OK)
@@ -58,6 +53,7 @@ def get_comment(item_id: str, db: Session = Depends(get_db)):
 
 
 @router.post("", response_model=Comment, status_code=status.HTTP_201_CREATED)
+@rate_limit(max_requests=60, window_seconds=3600)
 def post_comment(
     comment: CommentCreate,
     current_user: Users = Depends(get_current_user),
@@ -141,7 +137,7 @@ def delete_comment_with_replies(
     if comment_to_delete.parent_id is None:
         child_comments = db.query(Comments).filter(Comments.parent_id == item_id).all()
         for child in child_comments:
-         db.delete(child)
+            db.delete(child)
 
     # Delete the main comment
     db.delete(comment_to_delete)
@@ -211,33 +207,43 @@ def get_main_comments_by_post_id(post_id: str, db: Session = Depends(get_db)):
     return result
 
 @router.post("/{comment_id}/like", response_model=Comment, status_code=200)
+@router.post("/{comment_id}/toggle-like", response_model=Comment, status_code=200)
 def toggle_like_comment(
     comment_id: str,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    existing = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
     comment = db.query(Comments).filter_by(id=comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    if existing:
-        db.delete(existing)
-        if comment.likes and comment.likes > 0:  # type: ignore
-            comment.likes -= 1  # type: ignore
+    existing_like = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
+    
+    if existing_like:
+        # Unlike the comment (dislike)
+        db.delete(existing_like)
+        # Update comment likes count, but don't go below 0
+        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
+        if current_likes > 0:
+            setattr(comment, 'likes', current_likes - 1)
         db.commit()
     else:
-        like = CommentLike(
+        # Like the comment
+        new_like = CommentLike(
             id=shortuuid.uuid(),
             comment_id=comment_id, 
             user_id=current_user.id
         )
-        db.add(like)
-        comment.likes = (comment.likes or 0) + 1  # type: ignore
+        db.add(new_like)
+        # Update comment likes count
+        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
+        setattr(comment, 'likes', current_likes + 1)
         db.commit()
 
-    # Return the updated comment object
+    # Get updated like count and liked status
+    updated_likes_count = int(comment.likes) if comment.likes is not None else 0  # type: ignore
     liked_by_current_user = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
+    
     return Comment(
         id=str(comment.id),
         comment=str(comment.comment),
@@ -246,39 +252,11 @@ def toggle_like_comment(
         user_id=comment.user_id,  # type: ignore
         username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,  # type: ignore
+        likes=updated_likes_count,
         timestamp=comment.timestamp  # type: ignore
     )
 
-@router.delete("/{comment_id}/like", response_model=Comment, status_code=200)
-def delete_like_comment(
-    comment_id: str,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    existing = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
-    comment = db.query(Comments).filter_by(id=comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
 
-    if existing:
-        db.delete(existing)
-        if comment.likes and comment.likes > 0:  # type: ignore
-            comment.likes -= 1  # type: ignore
-        db.commit()
-    # After unlike (or if not previously liked), return the updated comment object
-    liked_by_current_user = db.query(CommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
-    return Comment(
-        id=str(comment.id),
-        comment=str(comment.comment),
-        post_id=str(comment.post_id),
-        parent_id=comment.parent_id,  # type: ignore
-        user_id=comment.user_id,  # type: ignore
-        username=comment.username,  # type: ignore
-        liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,  # type: ignore
-        timestamp=comment.timestamp  # type: ignore
-    )
 
 # Forum Comment Endpoints (using the same Comments table)
 @router.get("/forum/{forum_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)

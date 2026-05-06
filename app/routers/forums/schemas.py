@@ -1,11 +1,11 @@
 from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ForumBase(BaseModel):
-    title: str
-    content: str
+    title: str = Field(..., min_length=1, max_length=200)
+    content: str = Field(..., min_length=1, max_length=50000)
 
 
 class ForumCreate(ForumBase):
@@ -18,15 +18,13 @@ class ForumUpdate(BaseModel):
 
 
 class ForumResponse(ForumBase):
+    model_config = ConfigDict(from_attributes=True)
     id: str
     author: str
     likes: int
     timestamp: datetime
     updated_timestamp: datetime
     liked_by_current_user: Optional[bool] = False
-
-    class Config:
-        orm_mode = True
 
 
 # Forum Comment Schemas

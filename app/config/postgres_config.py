@@ -1,5 +1,6 @@
 from sqlalchemy import create_engine, DDL, event
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.pool import NullPool
 from dotenv import load_dotenv
 import os
 
@@ -9,11 +10,28 @@ postgres_db = os.getenv("SQL_DB")
 if not postgres_db:
     raise ValueError("SQL_DB environment variable must be set")
 
+# Check if we're in test mode
+is_test = os.getenv("TESTING", "false").lower() == "true" or "test" in postgres_db.lower()
+
+# Add SSL configuration only for production (not tests)
+connect_args = {}
+if not is_test and ("sslmode=require" in postgres_db or os.getenv("DATABASE_SSL", "false").lower() == "true"):
+    connect_args = {
+        "sslmode": "require",
+        "sslrootcert": os.getenv("SSL_ROOT_CERT", ""),
+        "sslcert": os.getenv("SSL_CLIENT_CERT", ""),
+        "sslkey": os.getenv("SSL_CLIENT_KEY", "")
+    }
+    # Remove sslmode from URL if present, add as connect_args
+    postgres_db = postgres_db.replace("?sslmode=require", "")
+
 engine = create_engine(
     postgres_db,
-    echo=True,
-    pool_pre_ping=True,  # Check connections before use
-    pool_recycle=300  # Recycle connections every 5 minutes
+    echo=False,
+    pool_pre_ping=True,
+    pool_recycle=300,
+    poolclass=NullPool if os.getenv("ENVIRONMENT", "").lower() == "production" else None,
+    connect_args=connect_args if connect_args else {}
 )
 
 # Enable foreign key support for SQLite

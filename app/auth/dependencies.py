@@ -8,7 +8,10 @@ from typing import Optional
 
 security = HTTPBearer(auto_error=False)
 
-def get_db():
+class AdminException(Exception):
+    pass
+
+async def get_db():
     db = SessionLocal()
     try:
         yield db
@@ -55,3 +58,15 @@ async def get_current_user_optional(
         return user
     except Exception:
         return None
+
+async def get_current_admin(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    db: Session = Depends(get_db)
+) -> Users:
+    user = await get_current_user(credentials, db)
+    if not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin access required"
+        )
+    return user

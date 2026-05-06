@@ -1,12 +1,12 @@
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CommentBase(BaseModel):
-    comment: str
-    post_id: Optional[str] = None  # Optional for forum comments
-    forum_id: Optional[str] = None  # Optional for post comments
+    comment: str = Field(..., min_length=1, max_length=5000)
+    post_id: Optional[str] = None
+    forum_id: Optional[str] = None
     parent_id: Optional[str] = None
 
 
@@ -15,7 +15,7 @@ class CommentCreate(CommentBase):
 
 
 class CommentUpdate(BaseModel):
-    comment: str
+    comment: str = Field(..., min_length=1, max_length=5000)
 
 
 class Comment(CommentBase):

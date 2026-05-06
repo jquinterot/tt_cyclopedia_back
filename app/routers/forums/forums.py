@@ -3,23 +3,28 @@ from sqlalchemy.orm import Session
 from .schemas import ForumCreate, ForumResponse, ForumUpdate, ForumComment, ForumCommentCreate, ForumCommentUpdate
 from .models import Forums, ForumLike, ForumComment as ForumCommentModel, ForumCommentLike
 from typing import List
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
 import shortuuid
-from datetime import datetime
+from datetime import datetime, timezone
+from app.middleware.rate_limiter import rate_limit, WRITE_LIMITER
 
 router = APIRouter(prefix="/forums")
 
 
 @router.get("", response_model=List[ForumResponse], status_code=status.HTTP_200_OK)
-def get_all_forums(db: Session = Depends(get_db)):
+def get_all_forums(db: Session = Depends(get_db), current_user: Users = Depends(get_current_user_optional)):
     """
     Get all forums - Public endpoint, no authentication required
     """
     forums = db.query(Forums).all()
     result = []
+    user_id = current_user.id if current_user else None
     for f in forums:
+        liked = False
+        if user_id:
+            liked = db.query(ForumLike).filter_by(forum_id=f.id, user_id=user_id).first() is not None
         result.append(ForumResponse(
             id=str(f.id),
             title=str(f.title),
@@ -28,13 +33,13 @@ def get_all_forums(db: Session = Depends(get_db)):
             likes=f.likes or 0,  # type: ignore
             timestamp=f.timestamp,  # type: ignore
             updated_timestamp=f.updated_timestamp,  # type: ignore
-            liked_by_current_user=False
+            liked_by_current_user=liked
         ))
     return result
 
 
 @router.get("/{forum_id}", response_model=ForumResponse, status_code=status.HTTP_200_OK)
-def get_forum_by_id(forum_id: str, db: Session = Depends(get_db)):
+def get_forum_by_id(forum_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user_optional)):
     """
     Get a specific forum by ID - Public endpoint, no authentication required
     """
@@ -46,6 +51,10 @@ def get_forum_by_id(forum_id: str, db: Session = Depends(get_db)):
             detail="Forum not found"
         )
     
+    liked = False
+    if current_user:
+        liked = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
+    
     return ForumResponse(
         id=str(forum.id),
         title=str(forum.title),
@@ -54,11 +63,12 @@ def get_forum_by_id(forum_id: str, db: Session = Depends(get_db)):
         likes=forum.likes or 0,  # type: ignore
         timestamp=forum.timestamp,  # type: ignore
         updated_timestamp=forum.updated_timestamp,  # type: ignore
-        liked_by_current_user=False
+        liked_by_current_user=liked
     )
 
 
 @router.post("", response_model=ForumResponse, status_code=status.HTTP_201_CREATED)
+@rate_limit(max_requests=30, window_seconds=3600)
 def create_forum(
     forum: ForumCreate,
     current_user: Users = Depends(get_current_user),
@@ -70,8 +80,8 @@ def create_forum(
         content=forum.content,
         author=current_user.username,
         likes=0,
-        timestamp=datetime.utcnow(),
-        updated_timestamp=datetime.utcnow()
+        timestamp=datetime.now(timezone.utc),
+        updated_timestamp=datetime.now(timezone.utc)
     )
     
     db.add(new_forum)
@@ -121,7 +131,7 @@ def update_forum(
     if forum_update.content is not None:
         setattr(forum, 'content', forum_update.content)
     
-    setattr(forum, 'updated_timestamp', datetime.utcnow())
+    setattr(forum, 'updated_timestamp', datetime.now(timezone.utc))
     
     db.commit()
     
@@ -153,72 +163,52 @@ def delete_forum(forum_id: str, db: Session = Depends(get_db), current_user: Use
 
 # Forum Like Endpoints
 @router.post("/{forum_id}/like", response_model=ForumResponse, status_code=200)
+@router.post("/{forum_id}/toggle-like", response_model=ForumResponse, status_code=200)
 def toggle_like_forum(
     forum_id: str,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    existing = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first()
     forum = db.query(Forums).filter_by(id=forum_id).first()
     if not forum:
         raise HTTPException(status_code=404, detail="Forum not found")
 
-    if existing:
-        db.delete(existing)
-        current_likes = forum.likes or 0
-        if current_likes > 0:  # type: ignore
+    existing_like = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first()
+    
+    if existing_like:
+        # Unlike the forum (dislike)
+        db.delete(existing_like)
+        # Update forum likes count, but don't go below 0
+        current_likes = int(forum.likes) if forum.likes is not None else 0  # type: ignore
+        if current_likes > 0:
             setattr(forum, 'likes', current_likes - 1)
         db.commit()
     else:
-        like = ForumLike(forum_id=forum_id, user_id=current_user.id)
-        db.add(like)
-        current_likes = forum.likes or 0
+        # Like the forum
+        new_like = ForumLike(forum_id=forum_id, user_id=current_user.id)
+        db.add(new_like)
+        # Update forum likes count
+        current_likes = int(forum.likes) if forum.likes is not None else 0  # type: ignore
         setattr(forum, 'likes', current_likes + 1)
         db.commit()
 
-    # Return the updated forum object
+    # Get updated like count and liked status
+    updated_likes_count = int(forum.likes) if forum.likes is not None else 0  # type: ignore
     liked_by_current_user = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
-    return ForumResponse(
-        id=str(forum.id),
-        title=str(forum.title),
-        content=str(forum.content),
-        author=str(forum.author),
-        likes=forum.likes or 0,  # type: ignore
-        timestamp=forum.timestamp,  # type: ignore
-        updated_timestamp=forum.updated_timestamp,  # type: ignore
-        liked_by_current_user=liked_by_current_user
-    )
-
-
-@router.delete("/{forum_id}/like", response_model=ForumResponse, status_code=200)
-def delete_like_forum(
-    forum_id: str,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    existing = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first()
-    forum = db.query(Forums).filter_by(id=forum_id).first()
-    if not forum:
-        raise HTTPException(status_code=404, detail="Forum not found")
-
-    if existing:
-        db.delete(existing)
-        if (forum.likes or 0) > 0:  # type: ignore
-            setattr(forum, 'likes', (forum.likes or 0) - 1)
-        db.commit()
     
-    # After unlike (or if not previously liked), return the updated forum object
-    liked_by_current_user = db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first() is not None
     return ForumResponse(
         id=str(forum.id),
         title=str(forum.title),
         content=str(forum.content),
         author=str(forum.author),
-        likes=forum.likes or 0,  # type: ignore
+        likes=updated_likes_count,
         timestamp=forum.timestamp,  # type: ignore
         updated_timestamp=forum.updated_timestamp,  # type: ignore
         liked_by_current_user=liked_by_current_user
     )
+
+
+
 
 
 # Forum Comments Endpoints
@@ -373,61 +363,40 @@ def delete_forum_comment_with_replies(
 
 
 @router.post("/{forum_id}/comments/{comment_id}/like", response_model=ForumComment, status_code=200)
+@router.post("/{forum_id}/comments/{comment_id}/toggle-like", response_model=ForumComment, status_code=200)
 def toggle_like_forum_comment(
     forum_id: str,
     comment_id: str,
     current_user: Users = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    existing = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
     comment = db.query(ForumCommentModel).filter_by(id=comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Comment not found")
 
-    if existing:
-        db.delete(existing)
-        if comment.likes and comment.likes > 0:  # type: ignore
-            comment.likes -= 1  # type: ignore
+    existing_like = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
+    
+    if existing_like:
+        # Unlike the comment (dislike)
+        db.delete(existing_like)
+        # Update comment likes count, but don't go below 0
+        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
+        if current_likes > 0:
+            setattr(comment, 'likes', current_likes - 1)
         db.commit()
     else:
-        like = ForumCommentLike(comment_id=comment_id, user_id=current_user.id)
-        db.add(like)
-        comment.likes = (comment.likes or 0) + 1  # type: ignore
+        # Like the comment
+        new_like = ForumCommentLike(comment_id=comment_id, user_id=current_user.id)
+        db.add(new_like)
+        # Update comment likes count
+        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
+        setattr(comment, 'likes', current_likes + 1)
         db.commit()
 
+    # Get updated like count and liked status
+    updated_likes_count = int(comment.likes) if comment.likes is not None else 0  # type: ignore
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
-    return ForumComment(
-        id=str(comment.id),
-        comment=str(comment.comment),
-        forum_id=str(comment.forum_id),
-        parent_id=comment.parent_id,  # type: ignore
-        user_id=comment.user_id,  # type: ignore
-        username=comment.username,  # type: ignore
-        liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,  # type: ignore
-        timestamp=comment.timestamp  # type: ignore
-    )
-
-
-@router.delete("/{forum_id}/comments/{comment_id}/like", response_model=ForumComment, status_code=200)
-def delete_like_forum_comment(
-    forum_id: str,
-    comment_id: str,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    existing = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
-    comment = db.query(ForumCommentModel).filter_by(id=comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Comment not found")
-
-    if existing:
-        db.delete(existing)
-        if comment.likes and comment.likes > 0:  # type: ignore
-            comment.likes -= 1  # type: ignore
-        db.commit()
     
-    liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
         id=str(comment.id),
         comment=str(comment.comment),
@@ -436,9 +405,12 @@ def delete_like_forum_comment(
         user_id=comment.user_id,  # type: ignore
         username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,  # type: ignore
+        likes=updated_likes_count,
         timestamp=comment.timestamp  # type: ignore
     )
+
+
+
 
 
 # General forum comment endpoints (mimicking post comments behavior)
@@ -578,6 +550,7 @@ def delete_forum_comment_general(
 
 
 @router.post("/comments/{comment_id}/like", response_model=ForumComment, status_code=200)
+@router.post("/comments/{comment_id}/toggle-like", response_model=ForumComment, status_code=200)
 def toggle_like_forum_comment_general(
     comment_id: str,
     current_user: Users = Depends(get_current_user),
@@ -586,57 +559,33 @@ def toggle_like_forum_comment_general(
     """
     Toggle like on a forum comment - mimics post comments behavior
     """
-    existing = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
     comment = db.query(ForumCommentModel).filter_by(id=comment_id).first()
     if not comment:
         raise HTTPException(status_code=404, detail="Forum comment not found")
 
-    if existing:
-        db.delete(existing)
-        if comment.likes and comment.likes > 0:  # type: ignore
-            comment.likes -= 1  # type: ignore
+    existing_like = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
+    
+    if existing_like:
+        # Unlike the comment (dislike)
+        db.delete(existing_like)
+        # Update comment likes count, but don't go below 0
+        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
+        if current_likes > 0:
+            setattr(comment, 'likes', current_likes - 1)
         db.commit()
     else:
-        like = ForumCommentLike(comment_id=comment_id, user_id=current_user.id)
-        db.add(like)
-        comment.likes = (comment.likes or 0) + 1  # type: ignore
+        # Like the comment
+        new_like = ForumCommentLike(comment_id=comment_id, user_id=current_user.id)
+        db.add(new_like)
+        # Update comment likes count
+        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
+        setattr(comment, 'likes', current_likes + 1)
         db.commit()
 
+    # Get updated like count and liked status
+    updated_likes_count = int(comment.likes) if comment.likes is not None else 0  # type: ignore
     liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
-    return ForumComment(
-        id=str(comment.id),
-        comment=str(comment.comment),
-        forum_id=str(comment.forum_id),
-        parent_id=comment.parent_id,  # type: ignore
-        user_id=comment.user_id,  # type: ignore
-        username=comment.username,  # type: ignore
-        liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,  # type: ignore
-        timestamp=comment.timestamp  # type: ignore
-    )
-
-
-@router.delete("/comments/{comment_id}/like", response_model=ForumComment, status_code=200)
-def delete_like_forum_comment_general(
-    comment_id: str,
-    current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """
-    Remove like from a forum comment - mimics post comments behavior
-    """
-    existing = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
-    comment = db.query(ForumCommentModel).filter_by(id=comment_id).first()
-    if not comment:
-        raise HTTPException(status_code=404, detail="Forum comment not found")
-
-    if existing:
-        db.delete(existing)
-        if comment.likes and comment.likes > 0:  # type: ignore
-            comment.likes -= 1  # type: ignore
-        db.commit()
     
-    liked_by_current_user = db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first() is not None
     return ForumComment(
         id=str(comment.id),
         comment=str(comment.comment),
@@ -645,9 +594,12 @@ def delete_like_forum_comment_general(
         user_id=comment.user_id,  # type: ignore
         username=comment.username,  # type: ignore
         liked_by_current_user=liked_by_current_user,
-        likes=comment.likes or 0,  # type: ignore
+        likes=updated_likes_count,
         timestamp=comment.timestamp  # type: ignore
     )
+
+
+
 
 
 # Forum-specific comment endpoints (mimicking post comments behavior)

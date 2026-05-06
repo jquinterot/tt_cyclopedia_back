@@ -43,11 +43,11 @@ class TestPosts:
         assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
     def test_unlike_post_unauthorized(self, client):
-        response = client.delete("/posts/fake-id/like")
+        response = client.post("/posts/fake-id/toggle-like")
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_unlike_post_not_found(self, client, auth_headers):
-        response = client.delete("/posts/fake-post-id/like", headers=auth_headers)
+        response = client.post("/posts/fake-post-id/toggle-like", headers=auth_headers)
         assert response.status_code in [status.HTTP_404_NOT_FOUND, status.HTTP_401_UNAUTHORIZED, status.HTTP_403_FORBIDDEN]
 
     def test_get_post_likes_public(self, client):

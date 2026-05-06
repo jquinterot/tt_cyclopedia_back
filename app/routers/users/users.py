@@ -1,21 +1,24 @@
-from fastapi import APIRouter, status, HTTPException, Depends
-from sqlalchemy import null
+from fastapi import APIRouter, status, HTTPException, Depends, Request
 from sqlalchemy.orm import Session
 from .models import Users
 from typing import Optional, List
 from passlib.context import CryptContext
 from app.auth.jwt_handler import jwt_handler
 from app.auth.dependencies import get_current_user
+from app.auth.account_security import (
+    check_account_lockout,
+    record_failed_login,
+    record_successful_login,
+    get_remaining_lockout_time
+)
 from .schemas import User, UserCreate, UserLogin, UserResponse, LoginResponse
 from app.config.postgres_config import get_db
 import shortuuid
+from app.middleware.rate_limiter import login_rate_limit
 
 router = APIRouter(prefix="/users")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-class Config:
-    orm_mode = True
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
@@ -23,26 +26,34 @@ def hash_password(password: str) -> str:
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
-@router.get("", response_model=List[UserResponse], status_code=status.HTTP_200_OK)
-def get_users(db: Session = Depends(get_db)):
-    users = db.query(Users).all()
-    return users
-
-@router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
-def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
-    user = db.query(Users).filter(Users.id == user_id).first()
-    if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    return user
-
 @router.post("/login", response_model=LoginResponse, status_code=status.HTTP_200_OK)
-def login(user_data: UserLogin, db: Session = Depends(get_db)):
+def login(user_data: UserLogin, request: Request, db: Session = Depends(get_db), _: bool = Depends(login_rate_limit)):
+    # Check if account is locked
+    is_locked, lockout_until = check_account_lockout(user_data.username)
+    if is_locked:
+        remaining = get_remaining_lockout_time(user_data.username)
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Account temporarily locked. Try again in {remaining} seconds."
+        )
+    
     user = db.query(Users).filter(Users.username == user_data.username).first()
     if not user or not verify_password(user_data.password, str(user.password)):
+        # Record failed attempt
+        lockout_info = record_failed_login(user_data.username)
+        if lockout_info["is_locked"]:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=f"Too many failed attempts. Account locked for 15 minutes."
+            )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password"
         )
+    
+    # Record successful login - clear failed attempts
+    record_successful_login(user_data.username)
+    
     access_token = jwt_handler.create_access_token(data={"sub": user.username})
     return {
         "access_token": access_token,
@@ -73,6 +84,18 @@ def post_user(user: UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
     return new_user
+
+@router.get("", response_model=List[UserResponse], status_code=status.HTTP_200_OK)
+def get_users(db: Session = Depends(get_db)):
+    users = db.query(Users).all()
+    return users
+
+@router.get("/{user_id}", response_model=UserResponse, status_code=status.HTTP_200_OK)
+def get_user_by_id(user_id: str, db: Session = Depends(get_db)):
+    user = db.query(Users).filter(Users.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):

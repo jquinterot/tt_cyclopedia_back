@@ -1,35 +1,56 @@
 from datetime import datetime
 
-from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form, Response, Query, Request
+from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form, Response, Query
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import or_
 from .models import Posts, PostLike
 from .schemas import PostResponse
+from app.routers.equipment.models import Equipment
 from typing import List, Optional
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
 from app.config.cloudinary_config import upload_image, delete_image_from_cloudinary, ALLOWED_TYPES, MAX_FILE_SIZE, DEFAULT_IMAGE_URL
-import shortuuid
-import json
+from app.middleware.rate_limiter import WriteRateLimiterMiddleware
 
 router = APIRouter(prefix="/posts")
 
-# Configuration - Using Cloudinary for image storage
 
-
-class Config:
-    orm_mode = True
+def build_post_response(post: Posts, db: Session, liked: bool) -> PostResponse:
+    """Helper to build a PostResponse with equipment info"""
+    equipment = None
+    if post.equipment:
+        equipment = {
+            "id": str(post.equipment.id),
+            "name": str(post.equipment.name),
+            "brand": str(post.equipment.brand),
+            "category": str(post.equipment.category),
+        }
+    return PostResponse(
+        id=str(post.id),
+        title=str(post.title),
+        content=str(post.content),
+        image_url=str(post.image_url),
+        likes=db.query(PostLike).filter_by(post_id=post.id).count(),
+        author=str(post.author),
+        timestamp=post.timestamp,  # type: ignore
+        stats=post.stats,  # type: ignore
+        likedByCurrentUser=liked,
+        equipment_id=post.equipment_id,
+        equipment=equipment,
+    )
 
 
 @router.get("", response_model=List[PostResponse], status_code=status.HTTP_200_OK)
 def get_posts(
-    search: Optional[str] = Query(None, description="Search posts by title or content"),
-    db: Session = Depends(get_db)
+    search: Optional[str] = Query(None, description="Search posts by title or content", min_length=1, max_length=100),
+    equipment_id: Optional[str] = Query(None, description="Filter by equipment ID"),
+    db: Session = Depends(get_db),
+    current_user: Users = Depends(get_current_user_optional)
 ):
     """
-    Get all posts with optional search functionality
+    Get all posts with optional search and equipment filter
     """
     query = db.query(Posts)
     if search:
@@ -41,48 +62,28 @@ def get_posts(
                 Posts.author.ilike(search_term)
             )
         )
+    if equipment_id:
+        query = query.filter(Posts.equipment_id == equipment_id)
     posts = query.all()
     result = []
+    user_id = current_user.id if current_user else None
     for post in posts:
-        likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
-        # likedByCurrentUser is always False for unauthenticated
-        result.append(PostResponse(
-            id=str(post.id),
-            title=str(post.title),
-            content=str(post.content),
-            image_url=str(post.image_url),
-            likes=likes_count,
-            author=str(post.author),
-            timestamp=post.timestamp,  # type: ignore
-            stats=post.stats,  # type: ignore
-            likedByCurrentUser=False
-        ))
+        liked = False
+        if user_id:
+            liked = db.query(PostLike).filter_by(post_id=post.id, user_id=user_id).first() is not None
+        result.append(build_post_response(post, db, liked))
     return result
 
 
 @router.get("/{post_id}", response_model=PostResponse, status_code=status.HTTP_200_OK)
-def get_post(post_id: str, request: Request, db: Session = Depends(get_db)):
+def get_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user_optional)):
     post = db.query(Posts).filter(Posts.id == post_id).first()
     if not post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
-    likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
     liked = False
-    user = None
-    if hasattr(request, 'state') and hasattr(request.state, 'user'):
-        user = request.state.user
-    if user and hasattr(user, 'id'):
-        liked = db.query(PostLike).filter_by(post_id=post.id, user_id=user.id).first() is not None
-    return PostResponse(
-        id=str(post.id),
-        title=str(post.title),
-        content=str(post.content),
-        image_url=str(post.image_url),
-        likes=likes_count,
-        author=str(post.author),
-        timestamp=post.timestamp,  # type: ignore
-        stats=post.stats,  # type: ignore
-        likedByCurrentUser=liked
-    )
+    if current_user:
+        liked = db.query(PostLike).filter_by(post_id=post.id, user_id=current_user.id).first() is not None
+    return build_post_response(post, db, liked)
 
 
 @router.post("", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
@@ -90,6 +91,7 @@ async def create_post(
         title: str = Form(...),
         content: str = Form(...),
         stats: str = Form(None),  # Accept as string
+        equipment_id: str = Form(None),  # Optional equipment link
         image: UploadFile = File(None),
         current_user: Users = Depends(get_current_user),
         db: Session = Depends(get_db)
@@ -104,6 +106,12 @@ async def create_post(
                 stats_dict = json.loads(stats)
             except Exception:
                 raise HTTPException(status_code=400, detail="Invalid stats JSON format")
+
+        # Validate equipment_id if provided
+        if equipment_id:
+            equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
+            if not equipment:
+                raise HTTPException(status_code=400, detail="Equipment not found")
 
         if image and image.filename:
             # Validate file type
@@ -130,7 +138,7 @@ async def create_post(
             except Exception as e:
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    detail=f"Failed to upload image: {str(e)}"
+                    detail="Failed to upload image. Please try again."
                 )
 
         new_post = Posts(
@@ -140,29 +148,19 @@ async def create_post(
             likes=0,
             author=current_user.username,  # Use authenticated user's username
             stats=stats_dict,  # Store as dict/JSON
+            equipment_id=equipment_id,
         )
 
         db.add(new_post)
         db.commit()
         db.refresh(new_post)
 
-        # Calculate likes and likedByCurrentUser
-        likes_count = db.query(PostLike).filter_by(post_id=new_post.id).count()
-        liked = False
-        if current_user:
-            liked = db.query(PostLike).filter_by(post_id=new_post.id, user_id=current_user.id).first() is not None
+        # Load equipment relationship for response
+        if new_post.equipment_id:
+            db.refresh(new_post, ['equipment'])
 
-        return PostResponse(
-            id=str(new_post.id),
-            title=str(new_post.title),
-            content=str(new_post.content),
-            image_url=str(new_post.image_url),
-            likes=likes_count,
-            author=str(new_post.author),
-            timestamp=new_post.timestamp,  # type: ignore
-            stats=new_post.stats,  # type: ignore
-            likedByCurrentUser=liked
-        )
+        return build_post_response(new_post, db, False)
+
 
     except IntegrityError:
         db.rollback()
@@ -174,7 +172,7 @@ async def create_post(
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error creating post: {str(e)}"
+            detail="Error creating post. Please try again."
         )
 
 
@@ -216,34 +214,37 @@ def delete_all_posts(
         raise HTTPException(500, f"Error deleting posts: {str(e)}")
 
 
-@router.post("/{post_id}/like", status_code=204)
-def like_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
-    # Check if post exists
+@router.post("/{post_id}/like", response_model=PostResponse, status_code=200)
+@router.post("/{post_id}/toggle-like", response_model=PostResponse, status_code=200)
+def toggle_like_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
     post = db.query(Posts).filter(Posts.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
     
-    like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
-    if like:
-        raise HTTPException(status_code=400, detail="Already liked")
-    db.add(PostLike(user_id=current_user.id, post_id=post_id))
-    db.commit()
-    return Response(status_code=204)
-
-
-@router.delete("/{post_id}/like", status_code=204)
-def unlike_post(post_id: str, db: Session = Depends(get_db), current_user: Users = Depends(get_current_user)):
-    # Check if post exists
-    post = db.query(Posts).filter(Posts.id == post_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+    existing_like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
     
-    like = db.query(PostLike).filter_by(user_id=current_user.id, post_id=post_id).first()
-    if not like:
-        raise HTTPException(status_code=400, detail="Not liked yet")
-    db.delete(like)
+    if existing_like:
+        # Unlike the post (dislike)
+        db.delete(existing_like)
+        # Update post likes count, but don't go below 0
+        current_likes = int(post.likes) if post.likes is not None else 0  # type: ignore
+        if current_likes > 0:
+            setattr(post, 'likes', current_likes - 1)
+        db.commit()
+    else:
+        # Like the post
+        new_like = PostLike(user_id=current_user.id, post_id=post_id)
+        db.add(new_like)
+        # Update post likes count
+        current_likes = int(post.likes) if post.likes is not None else 0  # type: ignore
+        setattr(post, 'likes', current_likes + 1)
     db.commit()
-    return Response(status_code=204)
+    
+    # Get updated like count and liked status
+    updated_likes_count = int(post.likes) if post.likes is not None else 0  # type: ignore
+    liked_by_current_user = db.query(PostLike).filter_by(post_id=post_id, user_id=current_user.id).first() is not None
+    
+    return build_post_response(post, db, liked_by_current_user)
 
 
 @router.get("/{post_id}/likes", status_code=200)

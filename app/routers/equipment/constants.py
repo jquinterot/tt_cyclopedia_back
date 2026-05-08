@@ -1,0 +1,6 @@
+class EquipmentErrorCode:
+    NOT_FOUND = "EQUIP_001"
+    NO_DATA = "EQUIP_002"
+    NO_BLADES = "EQUIP_003"
+    NO_RUBBERS = "EQUIP_004"
+    ALREADY_REVIEWED = "EQUIP_005"

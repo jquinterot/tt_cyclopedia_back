@@ -16,7 +16,7 @@ from app.routers.posts.models import Posts, PostLike
 from app.routers.forums.models import Forums, ForumLike, ForumComment, ForumCommentLike
 from app.routers.comments.models import Comments, CommentLike
 from app.routers.equipment.models import Equipment, BladeSpecs, RubberSpecs, EquipmentReview
-from app.routers.equipment.seed_data import BLADES, RUBBERS, SEED_POSTS, SEED_FORUMS
+from app.seeds.equipment_seed import BLADES, RUBBERS, SEED_POSTS, SEED_FORUMS
 from datetime import datetime, timezone
 
 def seed_equipment():

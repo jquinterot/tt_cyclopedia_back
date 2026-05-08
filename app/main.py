@@ -7,7 +7,8 @@ from sqlalchemy.exc import SQLAlchemyError
 from app.routers.comments.comments import router as comments_router
 from app.routers.posts.posts import router as posts_router
 from app.routers.users.users import router as users_router
-from app.routers.forums.forums import router as forums_router
+from app.routers.forums.router import router as forums_router
+from app.routers.forums.comment_router import router as forum_comments_router
 from fastapi.staticfiles import StaticFiles
 from app.middleware.log_to_mongo import MongoLoggingMiddleware
 from app.routers.logs.logs import router as logs_router
@@ -89,6 +90,7 @@ app.include_router(comments_router)
 app.include_router(posts_router)
 app.include_router(users_router)
 app.include_router(forums_router)
+app.include_router(forum_comments_router)
 app.include_router(logs_router)
 app.include_router(auth_router)
 app.include_router(equipment_router)

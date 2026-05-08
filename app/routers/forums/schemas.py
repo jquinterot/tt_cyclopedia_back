@@ -28,6 +28,19 @@ class ForumResponse(ForumBase):
     updated_timestamp: datetime = Field(..., description="Last update timestamp")
     liked_by_current_user: Optional[bool] = Field(False, description="Whether current user liked this forum")
 
+    @classmethod
+    def from_orm(cls, obj, liked_by_current_user: bool = False):
+        return cls(
+            id=str(obj.id),
+            title=str(obj.title),
+            content=str(obj.content),
+            author=str(obj.author),
+            likes=obj.likes or 0,
+            timestamp=obj.timestamp,
+            updated_timestamp=obj.updated_timestamp,
+            liked_by_current_user=liked_by_current_user,
+        )
+
 
 # Forum Comment Schemas
 class ForumCommentBase(BaseModel):
@@ -61,3 +74,17 @@ class ForumComment(ForumCommentBase):
     likes: Optional[int] = Field(0, ge=0, description="Number of likes")
     timestamp: Optional[datetime] = Field(None, description="Creation timestamp")
     parent_id: Optional[str] = Field(None, description="Parent comment ID for replies")
+
+    @classmethod
+    def from_orm(cls, obj, liked_by_current_user: bool = False):
+        return cls(
+            id=str(obj.id),
+            comment=str(obj.comment),
+            forum_id=str(obj.forum_id) if obj.forum_id else None,
+            user_id=obj.user_id,
+            username=obj.username,
+            liked_by_current_user=liked_by_current_user,
+            likes=obj.likes or 0,
+            timestamp=obj.timestamp,
+            parent_id=obj.parent_id,
+        )

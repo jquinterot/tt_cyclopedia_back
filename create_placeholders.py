@@ -42,7 +42,7 @@ def create_placeholder(path, name, brand, category):
 # Create placeholders for all equipment
 import sys
 sys.path.insert(0, '/Users/johany/Documents/projects/python/fastapi/tt_cyclopedia_back')
-from app.routers.equipment.seed_data import BLADES, RUBBERS
+from app.seeds.equipment_seed import BLADES, RUBBERS
 
 base_path = '/Users/johany/Documents/projects/python/fastapi/tt_cyclopedia_back/static/equipment'
 

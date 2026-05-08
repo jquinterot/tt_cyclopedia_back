@@ -26,7 +26,7 @@ class Comments(Base):
 
 class CommentLike(Base):
     __tablename__ = 'comment_likes'
-    id = Column(String(255), nullable=False, primary_key=True)
+    id = Column(String(255), nullable=False, primary_key=True, default=lambda: shortuuid.uuid())
     comment_id = Column(String(255), ForeignKey(get_fk_reference('comments'), ondelete='CASCADE'), nullable=False)
     user_id = Column(String(255), ForeignKey(get_fk_reference('users'), ondelete='CASCADE'), nullable=False)
     if schema_kwargs:

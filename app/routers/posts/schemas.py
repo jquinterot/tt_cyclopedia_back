@@ -41,6 +41,22 @@ class PostResponse(PostBase):
     likedByCurrentUser: bool = Field(..., description="Whether current user liked this post")
     equipment: Optional[EquipmentSummary] = Field(None, description="Linked equipment summary")
 
+    @classmethod
+    def from_orm(cls, obj, liked_by_current_user: bool = False, equipment: Optional[EquipmentSummary] = None, likes_count: int = 0):
+        return cls(
+            id=str(obj.id),
+            title=str(obj.title),
+            content=str(obj.content),
+            image_url=str(obj.image_url),
+            likes=likes_count,
+            author=str(obj.author),
+            timestamp=obj.timestamp,
+            stats=obj.stats,
+            likedByCurrentUser=liked_by_current_user,
+            equipment_id=obj.equipment_id,
+            equipment=equipment,
+        )
+
 
 class PostLikeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, extra='forbid')

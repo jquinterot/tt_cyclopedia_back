@@ -1,14 +1,13 @@
 from fastapi import APIRouter, status, HTTPException, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from .schemas import Comment, CommentCreate, CommentUpdate
-from .models import Comments, CommentLike
 from typing import List
 from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
 from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
-import shortuuid
+from .schemas import Comment, CommentCreate, CommentUpdate
+from . import service
 
 router = APIRouter(prefix="/comments")
 
@@ -22,23 +21,7 @@ def get_comments(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    comments = db.query(Comments).all()
-    result = []
-    for c in comments:
-        result.append(
-            Comment(
-                id=str(c.id),
-                comment=str(c.comment),
-                post_id=str(c.post_id),
-                parent_id=c.parent_id,  # type: ignore
-                user_id=c.user_id,  # type: ignore
-                username=c.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=c.likes or 0,  # type: ignore
-                timestamp=c.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_comments(db)
 
 
 @router.get("/{item_id}", response_model=Comment, status_code=200)
@@ -47,26 +30,7 @@ def get_comment(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    item_to_get = db.query(Comments).filter(Comments.id == item_id).first()
-
-    if item_to_get is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Comment not found",
-            headers={"X-Error-Code": "COMMENT_001"},
-        )
-
-    return Comment(
-        id=str(item_to_get.id),
-        comment=str(item_to_get.comment),
-        post_id=str(item_to_get.post_id),
-        parent_id=item_to_get.parent_id,  # type: ignore
-        user_id=item_to_get.user_id,  # type: ignore
-        username=item_to_get.username,  # type: ignore
-        liked_by_current_user=False,
-        likes=item_to_get.likes or 0,  # type: ignore
-        timestamp=item_to_get.timestamp,  # type: ignore
-    )
+    return service.get_comment_by_id(db, item_id)
 
 
 @router.post("", response_model=Comment, status_code=status.HTTP_201_CREATED)
@@ -76,29 +40,7 @@ def post_comment(
     db: Session = Depends(get_db),
     _: bool = Depends(write_rate_limit),
 ):
-    # Use the authenticated user's information
-    new_comment = Comments(
-        id=shortuuid.uuid(),
-        comment=comment.comment,
-        post_id=comment.post_id,
-        user_id=current_user.id,
-        username=current_user.username,
-        parent_id=comment.parent_id,
-    )
-    db.add(new_comment)
-    db.commit()
-    db.refresh(new_comment)
-    return Comment(
-        id=str(new_comment.id),
-        comment=str(new_comment.comment),
-        post_id=str(new_comment.post_id),
-        parent_id=new_comment.parent_id,  # type: ignore
-        user_id=new_comment.user_id,  # type: ignore
-        username=new_comment.username,  # type: ignore
-        liked_by_current_user=False,
-        likes=new_comment.likes or 0,  # type: ignore
-        timestamp=new_comment.timestamp,  # type: ignore
-    )
+    return service.create_comment(db, comment, current_user)
 
 
 @router.put("/{item_id}", response_model=Comment, status_code=status.HTTP_200_OK)
@@ -109,38 +51,7 @@ def update_comment(
     db: Session = Depends(get_db),
     _: bool = Depends(write_rate_limit),
 ):
-    item_to_update = db.query(Comments).filter(Comments.id == item_id).first()
-    if item_to_update is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Comment not found",
-            headers={"X-Error-Code": "COMMENT_001"},
-        )
-    if item_to_update.user_id != current_user.id:  # type: ignore
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only edit your own comments",
-            headers={"X-Error-Code": "COMMENT_002"},
-        )
-    item_to_update.comment = updated_comment.comment  # type: ignore
-    db.commit()
-    liked_by_current_user = (
-        db.query(CommentLike)
-        .filter_by(comment_id=item_to_update.id, user_id=current_user.id)
-        .first()
-        is not None
-    )
-    return Comment(
-        id=str(item_to_update.id),
-        comment=str(item_to_update.comment),
-        post_id=str(item_to_update.post_id),
-        parent_id=item_to_update.parent_id,  # type: ignore
-        user_id=item_to_update.user_id,  # type: ignore
-        username=item_to_update.username,  # type: ignore
-        likes=item_to_update.likes or 0,  # type: ignore
-        liked_by_current_user=liked_by_current_user,
-        timestamp=item_to_update.timestamp,  # type: ignore
-    )
+    return service.update_comment(db, item_id, updated_comment, current_user)
 
 
 @router.delete("/{item_id}", response_model=MessageResponse, status_code=status.HTTP_200_OK)
@@ -150,35 +61,8 @@ def delete_comment_with_replies(
     db: Session = Depends(get_db),
     _: bool = Depends(write_rate_limit),
 ):
-    # Query the comment to delete
-    comment_to_delete = db.query(Comments).filter(Comments.id == item_id).first()
-
-    if not comment_to_delete:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Comment not found",
-            headers={"X-Error-Code": "COMMENT_001"},
-        )
-
-    # Check if the user owns this comment
-    if comment_to_delete.user_id != current_user.id:  # type: ignore
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You can only delete your own comments",
-            headers={"X-Error-Code": "COMMENT_003"},
-        )
-
-    # Delete all child comments where parent_id matches the given item ID
-    if comment_to_delete.parent_id is None:
-        child_comments = db.query(Comments).filter(Comments.parent_id == item_id).all()
-        for child in child_comments:
-            db.delete(child)
-
-    # Delete the main comment
-    db.delete(comment_to_delete)
-    db.commit()
-
-    return {"detail": f"Comment with id {item_id} and its replies have been deleted"}
+    detail = service.delete_comment(db, item_id, current_user)
+    return {"detail": detail}
 
 
 @router.get("/post/{post_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
@@ -187,23 +71,7 @@ def get_comments_by_post_id(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    comments = db.query(Comments).filter(Comments.post_id == post_id).all()
-    result = []
-    for comment in comments:
-        result.append(
-            Comment(
-                id=str(comment.id),
-                comment=str(comment.comment),
-                post_id=str(comment.post_id),
-                parent_id=comment.parent_id,  # type: ignore
-                user_id=comment.user_id,  # type: ignore
-                username=comment.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=comment.likes or 0,  # type: ignore
-                timestamp=comment.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_comments_by_post(db, post_id)
 
 
 @router.get(
@@ -217,28 +85,7 @@ def get_comments_replied_to(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    replies = (
-        db.query(Comments)
-        .filter(Comments.parent_id == comment_id)
-        .filter(Comments.post_id == post_id)
-        .all()
-    )
-    result = []
-    for reply in replies:
-        result.append(
-            Comment(
-                id=str(reply.id),
-                comment=str(reply.comment),
-                post_id=str(reply.post_id),
-                parent_id=reply.parent_id,  # type: ignore
-                user_id=reply.user_id,  # type: ignore
-                username=reply.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=reply.likes or 0,  # type: ignore
-                timestamp=reply.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_replies(db, comment_id, post_id)
 
 
 @router.get(
@@ -249,29 +96,7 @@ def get_main_comments_by_post_id(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    main_comments = (
-        db.query(Comments)
-        .filter(Comments.post_id == post_id, Comments.parent_id == None)
-        .all()
-    )
-    if not main_comments:
-        return []
-    result = []
-    for comment in main_comments:
-        result.append(
-            Comment(
-                id=str(comment.id),
-                comment=str(comment.comment),
-                post_id=str(comment.post_id),
-                parent_id=comment.parent_id,  # type: ignore
-                user_id=comment.user_id,  # type: ignore
-                username=comment.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=comment.likes or 0,  # type: ignore
-                timestamp=comment.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_main_comments(db, post_id)
 
 
 @router.post("/{comment_id}/like", response_model=Comment, status_code=200)
@@ -282,59 +107,7 @@ def toggle_like_comment(
     db: Session = Depends(get_db),
     _: bool = Depends(write_rate_limit),
 ):
-    comment = db.query(Comments).filter_by(id=comment_id).first()
-    if not comment:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Comment not found",
-            headers={"X-Error-Code": "COMMENT_001"},
-        )
-
-    existing_like = db.query(CommentLike).filter_by(
-        comment_id=comment_id, user_id=current_user.id
-    ).first()
-
-    if existing_like:
-        # Unlike the comment (dislike)
-        db.delete(existing_like)
-        # Update comment likes count, but don't go below 0
-        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
-        if current_likes > 0:
-            setattr(comment, "likes", current_likes - 1)
-        db.commit()
-    else:
-        # Like the comment
-        new_like = CommentLike(
-            id=shortuuid.uuid(),
-            comment_id=comment_id,
-            user_id=current_user.id,
-        )
-        db.add(new_like)
-        # Update comment likes count
-        current_likes = int(comment.likes) if comment.likes is not None else 0  # type: ignore
-        setattr(comment, "likes", current_likes + 1)
-        db.commit()
-
-    # Get updated like count and liked status
-    updated_likes_count = int(comment.likes) if comment.likes is not None else 0  # type: ignore
-    liked_by_current_user = (
-        db.query(CommentLike)
-        .filter_by(comment_id=comment_id, user_id=current_user.id)
-        .first()
-        is not None
-    )
-
-    return Comment(
-        id=str(comment.id),
-        comment=str(comment.comment),
-        post_id=str(comment.post_id),
-        parent_id=comment.parent_id,  # type: ignore
-        user_id=comment.user_id,  # type: ignore
-        username=comment.username,  # type: ignore
-        liked_by_current_user=liked_by_current_user,
-        likes=updated_likes_count,
-        timestamp=comment.timestamp,  # type: ignore
-    )
+    return service.toggle_like_comment(db, comment_id, current_user)
 
 
 # Forum Comment Endpoints (using the same Comments table)
@@ -346,24 +119,7 @@ def get_forum_comments(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    comments = db.query(Comments).filter(Comments.forum_id == forum_id).all()
-    result = []
-    for comment in comments:
-        result.append(
-            Comment(
-                id=str(comment.id),
-                comment=str(comment.comment),
-                forum_id=str(comment.forum_id),
-                post_id=str(comment.post_id),
-                parent_id=comment.parent_id,  # type: ignore
-                user_id=comment.user_id,  # type: ignore
-                username=comment.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=comment.likes or 0,  # type: ignore
-                timestamp=comment.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_forum_comments(db, forum_id)
 
 
 @router.get(
@@ -374,28 +130,7 @@ def get_main_forum_comments(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    main_comments = (
-        db.query(Comments)
-        .filter(Comments.forum_id == forum_id, Comments.parent_id == None)
-        .all()
-    )
-    result = []
-    for comment in main_comments:
-        result.append(
-            Comment(
-                id=str(comment.id),
-                comment=str(comment.comment),
-                forum_id=str(comment.forum_id),
-                post_id=str(comment.post_id),
-                parent_id=comment.parent_id,  # type: ignore
-                user_id=comment.user_id,  # type: ignore
-                username=comment.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=comment.likes or 0,  # type: ignore
-                timestamp=comment.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_main_forum_comments(db, forum_id)
 
 
 @router.get(
@@ -409,29 +144,7 @@ def get_forum_comments_replied_to(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
 ):
-    replies = (
-        db.query(Comments)
-        .filter(Comments.parent_id == comment_id)
-        .filter(Comments.forum_id == forum_id)
-        .all()
-    )
-    result = []
-    for reply in replies:
-        result.append(
-            Comment(
-                id=str(reply.id),
-                comment=str(reply.comment),
-                forum_id=str(reply.forum_id),
-                post_id=str(reply.post_id),
-                parent_id=reply.parent_id,  # type: ignore
-                user_id=reply.user_id,  # type: ignore
-                username=reply.username,  # type: ignore
-                liked_by_current_user=False,
-                likes=reply.likes or 0,  # type: ignore
-                timestamp=reply.timestamp,  # type: ignore
-            )
-        )
-    return result
+    return service.get_forum_replies(db, comment_id, forum_id)
 
 
 @router.post("/forum/{forum_id}", response_model=Comment, status_code=status.HTTP_201_CREATED)
@@ -442,31 +155,4 @@ def create_forum_comment(
     db: Session = Depends(get_db),
     _: bool = Depends(write_rate_limit),
 ):
-    """
-    Create a new comment on a forum
-    """
-    new_comment = Comments(
-        id=shortuuid.uuid(),
-        comment=comment.comment,
-        forum_id=forum_id,
-        post_id=comment.post_id,
-        user_id=current_user.id,
-        username=current_user.username,
-        parent_id=comment.parent_id,
-    )
-    db.add(new_comment)
-    db.commit()
-    db.refresh(new_comment)
-
-    return Comment(
-        id=str(new_comment.id),
-        comment=str(new_comment.comment),
-        forum_id=str(new_comment.forum_id),
-        post_id=str(new_comment.post_id),
-        parent_id=new_comment.parent_id,  # type: ignore
-        user_id=new_comment.user_id,  # type: ignore
-        username=new_comment.username,  # type: ignore
-        liked_by_current_user=False,
-        likes=new_comment.likes or 0,  # type: ignore
-        timestamp=new_comment.timestamp,  # type: ignore
-    )
+    return service.create_forum_comment(db, forum_id, comment, current_user)

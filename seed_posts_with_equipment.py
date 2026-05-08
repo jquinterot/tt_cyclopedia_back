@@ -9,7 +9,7 @@ from app.routers.comments.models import Comments, CommentLike
 from app.routers.equipment.models import Equipment, BladeSpecs, RubberSpecs
 
 from app.config.postgres_config import SessionLocal
-from app.routers.equipment.seed_data import SEED_POSTS
+from app.seeds.equipment_seed import SEED_POSTS
 import shortuuid
 
 db = SessionLocal()

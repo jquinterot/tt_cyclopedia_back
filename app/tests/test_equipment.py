@@ -24,6 +24,10 @@ class TestEquipment:
         data = response.json()
         assert isinstance(data, list)
 
+    def test_get_equipment_search_too_long(self, client):
+        response = client.get(f"/equipment?search={'x' * 101}")
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
     def test_get_equipment_by_id_not_found(self, client):
         response = client.get("/equipment/fake-equipment-id")
         assert response.status_code == status.HTTP_404_NOT_FOUND
@@ -42,6 +46,14 @@ class TestEquipment:
         response = client.post("/equipment/fake-equipment-id/reviews", json=review_data)
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
+    def test_create_equipment_review_equipment_not_found(self, client, auth_headers):
+        review_data = {
+            "rating": 5,
+            "review_text": "Great blade!"
+        }
+        response = client.post("/equipment/fake-equipment-id/reviews", json=review_data, headers=auth_headers)
+        assert response.status_code == status.HTTP_404_NOT_FOUND
+
     def test_recommend_setup_endpoint(self, client):
         request_data = {
             "playing_style": "beginner",
@@ -59,6 +71,13 @@ class TestEquipment:
         }
         response = client.post("/equipment/recommend-setup", json=request_data)
         assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND, status.HTTP_422_UNPROCESSABLE_ENTITY]
+
+    def test_recommend_setup_no_budget(self, client):
+        request_data = {
+            "playing_style": "beginner"
+        }
+        response = client.post("/equipment/recommend-setup", json=request_data)
+        assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
 
     def test_equipment_response_structure(self, client):
         response = client.get("/equipment")

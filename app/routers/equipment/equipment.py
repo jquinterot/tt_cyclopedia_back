@@ -12,6 +12,7 @@ from .schemas import (
 from app.auth.dependencies import get_current_user, get_current_user_optional
 from app.routers.users.models import Users
 from app.config.postgres_config import get_db
+from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
 import shortuuid
 
 router = APIRouter(prefix="/equipment")
@@ -23,11 +24,12 @@ def get_equipment(
     brand: Optional[str] = Query(None, description="Filter by brand"),
     subcategory: Optional[str] = Query(None, description="Filter by subcategory"),
     search: Optional[str] = Query(None, description="Search by name or description", min_length=1, max_length=100),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: bool = Depends(read_rate_limit),
 ):
     """Get all equipment with optional filters"""
     query = db.query(Equipment)
-    
+
     if category:
         query = query.filter(Equipment.category == category)
     if brand:
@@ -43,12 +45,32 @@ def get_equipment(
                 Equipment.brand.ilike(search_term)
             )
         )
-    
+
     items = query.all()
+    if not items:
+        return []
+
+    # Batch-fetch ratings and review counts to avoid N+1
+    item_ids = [item.id for item in items]
+    avg_ratings = {
+        row.equipment_id: row.avg_rating
+        for row in db.query(
+            EquipmentReview.equipment_id,
+            func.avg(EquipmentReview.rating).label("avg_rating")
+        ).filter(EquipmentReview.equipment_id.in_(item_ids)).group_by(EquipmentReview.equipment_id).all()
+    }
+    review_counts = {
+        row.equipment_id: row.count
+        for row in db.query(
+            EquipmentReview.equipment_id,
+            func.count(EquipmentReview.id).label("count")
+        ).filter(EquipmentReview.equipment_id.in_(item_ids)).group_by(EquipmentReview.equipment_id).all()
+    }
+
     result = []
     for item in items:
-        avg_rating = db.query(func.avg(EquipmentReview.rating)).filter(EquipmentReview.equipment_id == item.id).scalar()
-        review_count = db.query(EquipmentReview).filter(EquipmentReview.equipment_id == item.id).count()
+        avg_rating = avg_ratings.get(item.id)
+        review_count = review_counts.get(item.id, 0)
         result.append(EquipmentResponse(
             id=str(item.id),
             name=str(item.name),
@@ -68,18 +90,26 @@ def get_equipment(
 
 
 @router.get("/{equipment_id}", response_model=EquipmentDetailResponse, status_code=status.HTTP_200_OK)
-def get_equipment_by_id(equipment_id: str, db: Session = Depends(get_db)):
+def get_equipment_by_id(
+    equipment_id: str,
+    db: Session = Depends(get_db),
+    _: bool = Depends(read_rate_limit),
+):
     """Get detailed equipment with specs"""
     item = db.query(Equipment).filter(Equipment.id == equipment_id).first()
     if not item:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Equipment not found",
+            headers={"X-Error-Code": "EQUIP_001"},
+        )
+
     avg_rating = db.query(func.avg(EquipmentReview.rating)).filter(EquipmentReview.equipment_id == item.id).scalar()
     review_count = db.query(EquipmentReview).filter(EquipmentReview.equipment_id == item.id).count()
-    
+
     blade_specs = db.query(BladeSpecs).filter(BladeSpecs.equipment_id == equipment_id).first()
     rubber_specs = db.query(RubberSpecs).filter(RubberSpecs.equipment_id == equipment_id).first()
-    
+
     return EquipmentDetailResponse(
         id=str(item.id),
         name=str(item.name),
@@ -127,7 +157,11 @@ def get_equipment_by_id(equipment_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{equipment_id}/reviews", response_model=List[EquipmentReviewResponse], status_code=status.HTTP_200_OK)
-def get_equipment_reviews(equipment_id: str, db: Session = Depends(get_db)):
+def get_equipment_reviews(
+    equipment_id: str,
+    db: Session = Depends(get_db),
+    _: bool = Depends(read_rate_limit),
+):
     """Get reviews for a piece of equipment"""
     reviews = db.query(EquipmentReview).filter(EquipmentReview.equipment_id == equipment_id).order_by(EquipmentReview.timestamp.desc()).all()
     return reviews
@@ -138,19 +172,28 @@ def create_review(
     equipment_id: str,
     review: EquipmentReviewCreate,
     current_user: Users = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: bool = Depends(write_rate_limit),
 ):
     """Create a review for equipment"""
     equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
     if not equipment:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Equipment not found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Equipment not found",
+            headers={"X-Error-Code": "EQUIP_001"},
+        )
+
     existing = db.query(EquipmentReview).filter_by(
         equipment_id=equipment_id, user_id=current_user.id
     ).first()
     if existing:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You have already reviewed this equipment")
-    
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="You have already reviewed this equipment",
+            headers={"X-Error-Code": "EQUIP_005"},
+        )
+
     new_review = EquipmentReview(
         id=shortuuid.uuid(),
         equipment_id=equipment_id,
@@ -175,17 +218,22 @@ def create_review(
 @router.post("/recommend-setup", response_model=SetupRecommendation, status_code=status.HTTP_200_OK)
 def recommend_setup(
     request: SetupRecommendationRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    _: bool = Depends(read_rate_limit),
 ):
     """Get equipment recommendations based on playing style"""
-    
+
     # Get all blades and rubbers
     blades = db.query(Equipment).filter(Equipment.category == "blade").all()
     rubbers = db.query(Equipment).filter(Equipment.category == "rubber").all()
-    
+
     if not blades or not rubbers:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No equipment data available")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No equipment data available",
+            headers={"X-Error-Code": "EQUIP_002"},
+        )
+
     # Get specs for scoring
     blade_scores = []
     for blade in blades:
@@ -193,7 +241,7 @@ def recommend_setup(
         if not specs:
             continue
         score = 0
-        
+
         if request.playing_style == "beginner":
             score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 2 + (specs.hardness or 0) * 0.5
         elif request.playing_style == "intermediate":
@@ -206,24 +254,24 @@ def recommend_setup(
             score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 2 + (100 - (specs.stiffness or 0))
         else:  # all_rounder
             score = (specs.control or 0) * 2 + (specs.speed or 0) + abs(50 - (specs.speed or 0)) * -1
-        
+
         # Filter by budget
         if request.budget_usd and blade.price_usd and blade.price_usd > request.budget_usd * 0.6:
             continue
-            
+
         # Filter by brand preference
         if request.preferred_brands and blade.brand not in request.preferred_brands:
             continue
-            
+
         blade_scores.append((score, blade, specs))
-    
+
     rubber_scores = []
     for rubber in rubbers:
         specs = db.query(RubberSpecs).filter(RubberSpecs.equipment_id == rubber.id).first()
         if not specs:
             continue
         score = 0
-        
+
         if request.playing_style == "beginner":
             score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 1.5 + (100 - (specs.spin or 0)) * 0.5
         elif request.playing_style == "intermediate":
@@ -236,35 +284,43 @@ def recommend_setup(
             score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 2
         else:  # all_rounder
             score = (specs.control or 0) * 2 + (specs.speed or 0) + (specs.spin or 0)
-        
+
         if request.budget_usd and rubber.price_usd and rubber.price_usd > request.budget_usd * 0.25:
             continue
-            
+
         if request.preferred_brands and rubber.brand not in request.preferred_brands:
             continue
-            
+
         rubber_scores.append((score, rubber, specs))
-    
+
     if not blade_scores:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No matching blades found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No matching blades found",
+            headers={"X-Error-Code": "EQUIP_003"},
+        )
     if not rubber_scores:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No matching rubbers found")
-    
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No matching rubbers found",
+            headers={"X-Error-Code": "EQUIP_004"},
+        )
+
     # Sort by score
     blade_scores.sort(key=lambda x: x[0], reverse=True)
     rubber_scores.sort(key=lambda x: x[0], reverse=True)
-    
+
     best_blade = blade_scores[0][1]
     best_blade_specs = blade_scores[0][2]
-    
+
     # Pick FH rubber (more offensive)
     fh_rubber = rubber_scores[0][1]
     fh_rubber_specs = rubber_scores[0][2]
-    
+
     # Pick BH rubber (more control, or same if limited options)
     bh_rubber = rubber_scores[1][1] if len(rubber_scores) > 1 else rubber_scores[0][1]
     bh_rubber_specs = rubber_scores[1][2] if len(rubber_scores) > 1 else rubber_scores[0][2]
-    
+
     total_price = 0
     if best_blade.price_usd:
         total_price += best_blade.price_usd
@@ -272,7 +328,7 @@ def recommend_setup(
         total_price += fh_rubber.price_usd
     if bh_rubber.price_usd:
         total_price += bh_rubber.price_usd
-    
+
     reasoning = f"For a {request.playing_style} player, we recommend:\n\n"
     reasoning += f"**Blade: {best_blade.name} ({best_blade.brand})**\n"
     reasoning += f"- Speed: {best_blade_specs.speed}/100, Control: {best_blade_specs.control}/100\n"
@@ -284,7 +340,7 @@ def recommend_setup(
     reasoning += f"- Speed: {bh_rubber_specs.speed}/100, Control: {bh_rubber_specs.control}/100\n"
     reasoning += f"- Top sheet: {bh_rubber_specs.top_sheet}\n\n"
     reasoning += f"Total estimated price: ${total_price:.2f}"
-    
+
     def to_detail_response(equipment, db_session):
         blade_s = db_session.query(BladeSpecs).filter(BladeSpecs.equipment_id == equipment.id).first()
         rubber_s = db_session.query(RubberSpecs).filter(RubberSpecs.equipment_id == equipment.id).first()
@@ -319,7 +375,7 @@ def recommend_setup(
                 top_sheet=rubber_s.top_sheet, weight=rubber_s.weight, durability=rubber_s.durability,
             ) if rubber_s else None,
         )
-    
+
     return SetupRecommendation(
         blade=to_detail_response(best_blade, db),
         rubber_forehand=to_detail_response(fh_rubber, db),

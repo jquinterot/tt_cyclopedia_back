@@ -6,6 +6,7 @@ from app.routers.users.models import Users
 from app.auth.dependencies import get_current_admin
 from app.config.mongo_config import db
 from app.routers.logs.schemas import LogEntry
+from app.middleware.rate_limiter import read_rate_limit
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 
@@ -15,7 +16,8 @@ def get_logs(
     method: Optional[str] = None,
     path: Optional[str] = None,
     since: Optional[datetime] = None,
-    current_admin: Users = Depends(get_current_admin)
+    current_admin: Users = Depends(get_current_admin),
+    _: bool = Depends(read_rate_limit),
 ):
     query = {}
     if method:
@@ -27,4 +29,4 @@ def get_logs(
     logs = list(db.api_logs.find(query).sort("timestamp", -1).limit(limit))
     for log in logs:
         log["_id"] = str(log["_id"])
-    return logs 
+    return logs

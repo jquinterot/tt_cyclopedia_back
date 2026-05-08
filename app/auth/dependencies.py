@@ -26,6 +26,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Authentication required",
+            headers={"X-Error-Code": "AUTH_001"},
         )
     try:
         username = jwt_handler.verify_token(credentials.credentials)
@@ -34,7 +35,7 @@ async def get_current_user(
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found",
-                headers={"WWW-Authenticate": "Bearer"},
+                headers={"WWW-Authenticate": "Bearer", "X-Error-Code": "AUTH_002"},
             )
         return user
     except HTTPException:
@@ -43,7 +44,7 @@ async def get_current_user(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Could not validate credentials",
-            headers={"WWW-Authenticate": "Bearer"},
+            headers={"WWW-Authenticate": "Bearer", "X-Error-Code": "AUTH_002"},
         )
 
 async def get_current_user_optional(
@@ -67,6 +68,7 @@ async def get_current_admin(
     if not user.is_admin:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin access required"
+            detail="Admin access required",
+            headers={"X-Error-Code": "AUTH_004"},
         )
     return user

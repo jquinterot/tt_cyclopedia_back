@@ -1,27 +1,26 @@
-# app/routers/posts/schemas.py
 from datetime import datetime
 from typing import Optional, Dict
 from pydantic import BaseModel, field_validator, ConfigDict, Field
 
 
 class EquipmentSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    id: str
-    name: str
-    brand: str
-    category: str
+    model_config = ConfigDict(from_attributes=True, extra='forbid')
+    id: str = Field(..., description="Equipment ID")
+    name: str = Field(..., description="Equipment name")
+    brand: str = Field(..., description="Equipment brand")
+    category: str = Field(..., description="Equipment category")
 
 
 class PostBase(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-    title: str = Field(..., min_length=1, max_length=200)
-    content: str = Field(..., min_length=1, max_length=50000)
-    image_url: str
-    likes: int = 0
-    author: str
-    timestamp: datetime
-    stats: Optional[Dict[str, float]] = None
-    equipment_id: Optional[str] = None
+    model_config = ConfigDict(from_attributes=True, extra='forbid')
+    title: str = Field(..., min_length=1, max_length=200, description="Post title")
+    content: str = Field(..., min_length=1, max_length=50000, description="Post content")
+    image_url: str = Field(..., description="URL to post image")
+    likes: int = Field(0, ge=0, description="Number of likes")
+    author: str = Field(..., description="Author username")
+    timestamp: datetime = Field(..., description="Creation timestamp")
+    stats: Optional[Dict[str, float]] = Field(None, description="Optional stats dictionary")
+    equipment_id: Optional[str] = Field(None, description="Linked equipment ID")
 
     @field_validator('stats')
     @classmethod
@@ -38,6 +37,12 @@ class PostCreate(PostBase):
 
 
 class PostResponse(PostBase):
-    id: str
-    likedByCurrentUser: bool
-    equipment: Optional[EquipmentSummary] = None
+    id: str = Field(..., description="Post ID")
+    likedByCurrentUser: bool = Field(..., description="Whether current user liked this post")
+    equipment: Optional[EquipmentSummary] = Field(None, description="Linked equipment summary")
+
+
+class PostLikeResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra='forbid')
+    user_id: str = Field(..., description="User ID who liked")
+    created_at: datetime = Field(..., description="Like timestamp")

@@ -25,5 +25,6 @@ faker>=18.0.0       # For generating fake data
 
 # Development tools
 black>=23.0.0        # Code formatting
-flake8>=6.0.0        # Linting
+ruff>=0.5.0          # Fast Python linter (replaces flake8)
+pre-commit>=3.0.0    # Git pre-commit hooks
 mypy>=1.0.0          # Type checking 

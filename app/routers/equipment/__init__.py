@@ -1,1 +1,1 @@
-from .equipment import router
+from .equipment import router as router

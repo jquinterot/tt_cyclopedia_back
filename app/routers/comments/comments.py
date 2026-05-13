@@ -1,13 +1,14 @@
-from fastapi import APIRouter, status, HTTPException, Depends
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List
-from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
-from app.auth.dependencies import get_current_user, get_current_user_optional
-from app.routers.users.models import Users
+
+from app.auth.dependencies import get_current_user
 from app.config.postgres_config import get_db
-from .schemas import Comment, CommentCreate, CommentUpdate
+from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
+from app.routers.users.models import Users
+
 from . import service
+from .schemas import Comment, CommentCreate, CommentUpdate
 
 router = APIRouter(prefix="/comments")
 
@@ -16,7 +17,7 @@ class MessageResponse(BaseModel):
     detail: str
 
 
-@router.get("", response_model=List[Comment], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[Comment], status_code=status.HTTP_200_OK)
 def get_comments(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
@@ -65,7 +66,7 @@ def delete_comment_with_replies(
     return {"detail": detail}
 
 
-@router.get("/post/{post_id}", response_model=List[Comment], status_code=status.HTTP_200_OK)
+@router.get("/post/{post_id}", response_model=list[Comment], status_code=status.HTTP_200_OK)
 def get_comments_by_post_id(
     post_id: str,
     db: Session = Depends(get_db),
@@ -76,7 +77,7 @@ def get_comments_by_post_id(
 
 @router.get(
     "/post/{post_id}/replies/{comment_id}",
-    response_model=List[Comment],
+    response_model=list[Comment],
     status_code=status.HTTP_200_OK,
 )
 def get_comments_replied_to(
@@ -88,9 +89,7 @@ def get_comments_replied_to(
     return service.get_replies(db, comment_id, post_id)
 
 
-@router.get(
-    "/post/{post_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK
-)
+@router.get("/post/{post_id}/main", response_model=list[Comment], status_code=status.HTTP_200_OK)
 def get_main_comments_by_post_id(
     post_id: str,
     db: Session = Depends(get_db),
@@ -111,9 +110,7 @@ def toggle_like_comment(
 
 
 # Forum Comment Endpoints (using the same Comments table)
-@router.get(
-    "/forum/{forum_id}", response_model=List[Comment], status_code=status.HTTP_200_OK
-)
+@router.get("/forum/{forum_id}", response_model=list[Comment], status_code=status.HTTP_200_OK)
 def get_forum_comments(
     forum_id: str,
     db: Session = Depends(get_db),
@@ -122,9 +119,7 @@ def get_forum_comments(
     return service.get_forum_comments(db, forum_id)
 
 
-@router.get(
-    "/forum/{forum_id}/main", response_model=List[Comment], status_code=status.HTTP_200_OK
-)
+@router.get("/forum/{forum_id}/main", response_model=list[Comment], status_code=status.HTTP_200_OK)
 def get_main_forum_comments(
     forum_id: str,
     db: Session = Depends(get_db),
@@ -135,7 +130,7 @@ def get_main_forum_comments(
 
 @router.get(
     "/forum/{forum_id}/replies/{comment_id}",
-    response_model=List[Comment],
+    response_model=list[Comment],
     status_code=status.HTTP_200_OK,
 )
 def get_forum_comments_replied_to(

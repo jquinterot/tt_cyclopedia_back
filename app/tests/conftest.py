@@ -1,10 +1,11 @@
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+
 from app.auth.jwt_handler import jwt_handler
 from app.config.postgres_config import SessionLocal
+from app.main import app
+from app.middleware.rate_limiter import auth_rate_limit, read_rate_limit, write_rate_limit
 from app.routers.users.models import Users
-from app.middleware.rate_limiter import auth_rate_limit, write_rate_limit, read_rate_limit
 
 # Disable rate limiting for tests
 app.dependency_overrides[auth_rate_limit] = lambda: True
@@ -30,17 +31,14 @@ def client():
 def ensure_test_users(client):
     """Ensure test users exist in the database for authenticated tests."""
     # Create regular test user
-    resp = client.post("/users", json={
-        "username": TEST_USERNAME,
-        "email": TEST_EMAIL,
-        "password": TEST_PASSWORD
-    })
+    _resp = client.post(
+        "/users", json={"username": TEST_USERNAME, "email": TEST_EMAIL, "password": TEST_PASSWORD}
+    )
     # Create admin test user
-    resp_admin = client.post("/users", json={
-        "username": ADMIN_USERNAME,
-        "email": ADMIN_EMAIL,
-        "password": ADMIN_PASSWORD
-    })
+    _resp_admin = client.post(
+        "/users",
+        json={"username": ADMIN_USERNAME, "email": ADMIN_EMAIL, "password": ADMIN_PASSWORD},
+    )
     # Promote admin user via direct DB access
     db = SessionLocal()
     try:
@@ -73,11 +71,13 @@ def test_user(ensure_test_users):
             return user
     finally:
         db.close()
+
     # Fallback dummy if DB query fails
     class User:
         id = "dummyid"
         username = TEST_USERNAME
         email = TEST_EMAIL
+
     return User()
 
 
@@ -90,11 +90,13 @@ def test_admin(ensure_test_users):
             return user
     finally:
         db.close()
+
     class User:
         id = "adminid"
         username = ADMIN_USERNAME
         email = ADMIN_EMAIL
         is_admin = True
+
     return User()
 
 
@@ -105,6 +107,7 @@ def test_post():
         title = "Dummy Post"
         content = "Dummy content"
         author = TEST_USERNAME
+
     return Post()
 
 
@@ -115,6 +118,7 @@ def test_forum():
         title = "Dummy Forum"
         content = "Dummy forum content"
         author = TEST_USERNAME
+
     return Forum()
 
 
@@ -125,4 +129,5 @@ def test_comment():
         content = "Test comment"
         post_id = "dummypostid"
         author = TEST_USERNAME
+
     return Comment()

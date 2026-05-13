@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
+
 from app.auth.dependencies import get_current_user
+from app.middleware.rate_limiter import read_rate_limit
 from app.routers.users.models import Users
 from app.routers.users.schemas import UserResponse
-from app.middleware.rate_limiter import read_rate_limit
 
 router = APIRouter(prefix="/auth")
 

@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+
 class EquipmentNotFound(HTTPException):
     def __init__(self):
         super().__init__(
@@ -7,6 +8,7 @@ class EquipmentNotFound(HTTPException):
             detail="Equipment not found",
             headers={"X-Error-Code": "EQUIP_001"},
         )
+
 
 class EquipmentNoData(HTTPException):
     def __init__(self):
@@ -16,6 +18,7 @@ class EquipmentNoData(HTTPException):
             headers={"X-Error-Code": "EQUIP_002"},
         )
 
+
 class EquipmentNoBlades(HTTPException):
     def __init__(self):
         super().__init__(
@@ -24,6 +27,7 @@ class EquipmentNoBlades(HTTPException):
             headers={"X-Error-Code": "EQUIP_003"},
         )
 
+
 class EquipmentNoRubbers(HTTPException):
     def __init__(self):
         super().__init__(
@@ -31,6 +35,7 @@ class EquipmentNoRubbers(HTTPException):
             detail="No matching rubbers found",
             headers={"X-Error-Code": "EQUIP_004"},
         )
+
 
 class EquipmentAlreadyReviewed(HTTPException):
     def __init__(self):

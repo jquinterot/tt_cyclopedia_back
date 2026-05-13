@@ -1,6 +1,7 @@
-import pytest
 import uuid
+
 from fastapi import status
+
 
 class TestPosts:
     def test_get_posts_endpoint(self, client, auth_headers):
@@ -20,19 +21,17 @@ class TestPosts:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_create_post_unauthorized(self, client):
-        post_data = {
-            "title": "Test Post",
-            "content": "Test content"
-        }
+        post_data = {"title": "Test Post", "content": "Test content"}
         response = client.post("/posts", data=post_data)
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_create_post_success(self, client, auth_headers):
         unique = str(uuid.uuid4())
-        response = client.post("/posts", data={
-            "title": f"Test Post {unique}",
-            "content": "Test content for creation"
-        }, headers=auth_headers)
+        response = client.post(
+            "/posts",
+            data={"title": f"Test Post {unique}", "content": "Test content for creation"},
+            headers=auth_headers,
+        )
         assert response.status_code == status.HTTP_201_CREATED
         data = response.json()
         assert "id" in data
@@ -41,20 +40,28 @@ class TestPosts:
 
     def test_create_post_invalid_stats(self, client, auth_headers):
         unique = str(uuid.uuid4())
-        response = client.post("/posts", data={
-            "title": f"Stats Post {unique}",
-            "content": "Test content",
-            "stats": "not-valid-json"
-        }, headers=auth_headers)
+        response = client.post(
+            "/posts",
+            data={
+                "title": f"Stats Post {unique}",
+                "content": "Test content",
+                "stats": "not-valid-json",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_create_post_equipment_not_found(self, client, auth_headers):
         unique = str(uuid.uuid4())
-        response = client.post("/posts", data={
-            "title": f"Equip Post {unique}",
-            "content": "Test content",
-            "equipment_id": "fake-equipment-id"
-        }, headers=auth_headers)
+        response = client.post(
+            "/posts",
+            data={
+                "title": f"Equip Post {unique}",
+                "content": "Test content",
+                "equipment_id": "fake-equipment-id",
+            },
+            headers=auth_headers,
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_delete_post_unauthorized(self, client):
@@ -73,10 +80,11 @@ class TestPosts:
 
     def test_delete_post_success(self, client, auth_headers):
         # Create a post
-        create_resp = client.post("/posts", data={
-            "title": f"Delete Post {uuid.uuid4()}",
-            "content": "To be deleted"
-        }, headers=auth_headers)
+        create_resp = client.post(
+            "/posts",
+            data={"title": f"Delete Post {uuid.uuid4()}", "content": "To be deleted"},
+            headers=auth_headers,
+        )
         if create_resp.status_code == status.HTTP_201_CREATED:
             post_id = create_resp.json()["id"]
             del_resp = client.delete(f"/posts/{post_id}", headers=auth_headers)
@@ -91,10 +99,11 @@ class TestPosts:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_like_post_success(self, client, auth_headers):
-        create_resp = client.post("/posts", data={
-            "title": f"Like Post {uuid.uuid4()}",
-            "content": "Like me"
-        }, headers=auth_headers)
+        create_resp = client.post(
+            "/posts",
+            data={"title": f"Like Post {uuid.uuid4()}", "content": "Like me"},
+            headers=auth_headers,
+        )
         if create_resp.status_code == status.HTTP_201_CREATED:
             post_id = create_resp.json()["id"]
             like_resp = client.post(f"/posts/{post_id}/like", headers=auth_headers)
@@ -120,10 +129,11 @@ class TestPosts:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_get_post_likes_success(self, client, auth_headers):
-        create_resp = client.post("/posts", data={
-            "title": f"Liked Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        create_resp = client.post(
+            "/posts",
+            data={"title": f"Liked Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         if create_resp.status_code == status.HTTP_201_CREATED:
             post_id = create_resp.json()["id"]
             client.post(f"/posts/{post_id}/like", headers=auth_headers)
@@ -164,13 +174,17 @@ class TestPosts:
 
     def test_delete_all_posts_as_admin(self, client, admin_auth_headers):
         # Create a post as admin
-        client.post("/posts", data={
-            "title": f"Admin Post {uuid.uuid4()}",
-            "content": "Admin content"
-        }, headers=admin_auth_headers)
+        client.post(
+            "/posts",
+            data={"title": f"Admin Post {uuid.uuid4()}", "content": "Admin content"},
+            headers=admin_auth_headers,
+        )
         response = client.delete("/posts/all", headers=admin_auth_headers)
         # Cloudinary may not be available in tests, so 500 is acceptable
-        assert response.status_code in [status.HTTP_204_NO_CONTENT, status.HTTP_500_INTERNAL_SERVER_ERROR]
+        assert response.status_code in [
+            status.HTTP_204_NO_CONTENT,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
 
     def test_delete_all_posts_unauthorized(self, client, auth_headers):
         response = client.delete("/posts/all", headers=auth_headers)
@@ -178,21 +192,30 @@ class TestPosts:
 
     def test_create_post_with_image(self, client, auth_headers):
         from io import BytesIO
+
         unique = str(uuid.uuid4())
         image = BytesIO(b"fake-image-data")
-        response = client.post("/posts", data={
-            "title": f"Image Post {unique}",
-            "content": "Post with image"
-        }, files={"image": ("test.jpg", image, "image/jpeg")}, headers=auth_headers)
+        response = client.post(
+            "/posts",
+            data={"title": f"Image Post {unique}", "content": "Post with image"},
+            files={"image": ("test.jpg", image, "image/jpeg")},
+            headers=auth_headers,
+        )
         # May fail due to Cloudinary not being configured (500) or succeed (201)
-        assert response.status_code in [status.HTTP_201_CREATED, status.HTTP_500_INTERNAL_SERVER_ERROR]
+        assert response.status_code in [
+            status.HTTP_201_CREATED,
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+        ]
 
     def test_create_post_unsupported_file_type(self, client, auth_headers):
         from io import BytesIO
+
         unique = str(uuid.uuid4())
         file_data = BytesIO(b"fake-data")
-        response = client.post("/posts", data={
-            "title": f"Bad File Post {unique}",
-            "content": "Post with bad file"
-        }, files={"image": ("test.txt", file_data, "text/plain")}, headers=auth_headers)
+        response = client.post(
+            "/posts",
+            data={"title": f"Bad File Post {unique}", "content": "Post with bad file"},
+            files={"image": ("test.txt", file_data, "text/plain")},
+            headers=auth_headers,
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST

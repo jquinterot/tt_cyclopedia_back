@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+
 class CommentNotFound(HTTPException):
     def __init__(self):
         super().__init__(
@@ -7,6 +8,7 @@ class CommentNotFound(HTTPException):
             detail="Comment not found",
             headers={"X-Error-Code": "COMMENT_001"},
         )
+
 
 class CommentNotAuthorized(HTTPException):
     def __init__(self, action="edit"):

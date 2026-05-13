@@ -1,5 +1,5 @@
-import pytest
 from fastapi import status
+
 
 class TestLogs:
     def test_get_logs_unauthorized(self, client):

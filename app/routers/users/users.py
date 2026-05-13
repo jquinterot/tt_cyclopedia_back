@@ -1,20 +1,21 @@
-from fastapi import APIRouter, status, HTTPException, Depends, Request
-from sqlalchemy.orm import Session
-from .models import Users
-from typing import Optional, List
+import shortuuid
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from passlib.context import CryptContext
-from app.auth.jwt_handler import jwt_handler
-from app.auth.dependencies import get_current_user
+from sqlalchemy.orm import Session
+
 from app.auth.account_security import (
     check_account_lockout,
+    get_remaining_lockout_time,
     record_failed_login,
     record_successful_login,
-    get_remaining_lockout_time
 )
-from .schemas import UserCreate, UserLogin, UserResponse, LoginResponse
+from app.auth.dependencies import get_current_user
+from app.auth.jwt_handler import jwt_handler
 from app.config.postgres_config import get_db
-import shortuuid
 from app.middleware.rate_limiter import auth_rate_limit, read_rate_limit
+
+from .models import Users
+from .schemas import LoginResponse, UserCreate, UserLogin, UserResponse
 
 router = APIRouter(prefix="/users")
 
@@ -83,12 +84,10 @@ def post_user(
     db: Session = Depends(get_db),
     _: bool = Depends(auth_rate_limit),
 ):
-    existing_username: Optional[Users] = db.query(Users).filter(
-        Users.username == user.username
-    ).first()
-    existing_email: Optional[Users] = db.query(Users).filter(
-        Users.email == user.email
-    ).first()
+    existing_username: Users | None = (
+        db.query(Users).filter(Users.username == user.username).first()
+    )
+    existing_email: Users | None = db.query(Users).filter(Users.email == user.email).first()
     if existing_username is not None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -114,7 +113,7 @@ def post_user(
     return new_user
 
 
-@router.get("", response_model=List[UserResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[UserResponse], status_code=status.HTTP_200_OK)
 def get_users(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),

@@ -1,6 +1,7 @@
-import pytest
 import uuid
+
 from fastapi import status
+
 
 class TestComments:
     def test_get_comments_endpoint(self, client, auth_headers):
@@ -20,25 +21,22 @@ class TestComments:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_create_comment_unauthorized(self, client):
-        comment_data = {
-            "comment": "Test comment",
-            "post_id": "fake-post-id"
-        }
+        comment_data = {"comment": "Test comment", "post_id": "fake-post-id"}
         response = client.post("/comments", json=comment_data)
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_create_comment_success(self, client, auth_headers):
         # First create a post
-        post_resp = client.post("/posts", data={
-            "title": f"Comment Post {uuid.uuid4()}",
-            "content": "Post for comments"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Comment Post {uuid.uuid4()}", "content": "Post for comments"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        comment_resp = client.post("/comments", json={
-            "comment": "Nice post!",
-            "post_id": post_id
-        }, headers=auth_headers)
+        comment_resp = client.post(
+            "/comments", json={"comment": "Nice post!", "post_id": post_id}, headers=auth_headers
+        )
         assert comment_resp.status_code == status.HTTP_201_CREATED
         data = comment_resp.json()
         assert data["comment"] == "Nice post!"
@@ -46,28 +44,28 @@ class TestComments:
         assert data["username"] == "testuser"
 
     def test_update_comment_success(self, client, auth_headers):
-        post_resp = client.post("/posts", data={
-            "title": f"Update Comment Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Update Comment Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        comment_resp = client.post("/comments", json={
-            "comment": "Original",
-            "post_id": post_id
-        }, headers=auth_headers)
+        comment_resp = client.post(
+            "/comments", json={"comment": "Original", "post_id": post_id}, headers=auth_headers
+        )
         assert comment_resp.status_code == status.HTTP_201_CREATED
         comment_id = comment_resp.json()["id"]
-        update_resp = client.put(f"/comments/{comment_id}", json={
-            "comment": "Updated text"
-        }, headers=auth_headers)
+        update_resp = client.put(
+            f"/comments/{comment_id}", json={"comment": "Updated text"}, headers=auth_headers
+        )
         assert update_resp.status_code == status.HTTP_200_OK
         assert update_resp.json()["comment"] == "Updated text"
 
     def test_update_comment_not_found(self, client, auth_headers):
-        response = client.put("/comments/fake-comment-id", json={
-            "comment": "Updated"
-        }, headers=auth_headers)
+        response = client.put(
+            "/comments/fake-comment-id", json={"comment": "Updated"}, headers=auth_headers
+        )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_delete_comment_unauthorized(self, client):
@@ -79,16 +77,16 @@ class TestComments:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_delete_comment_success(self, client, auth_headers):
-        post_resp = client.post("/posts", data={
-            "title": f"Delete Comment Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Delete Comment Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        comment_resp = client.post("/comments", json={
-            "comment": "To delete",
-            "post_id": post_id
-        }, headers=auth_headers)
+        comment_resp = client.post(
+            "/comments", json={"comment": "To delete", "post_id": post_id}, headers=auth_headers
+        )
         assert comment_resp.status_code == status.HTTP_201_CREATED
         comment_id = comment_resp.json()["id"]
         del_resp = client.delete(f"/comments/{comment_id}", headers=auth_headers)
@@ -100,16 +98,16 @@ class TestComments:
         assert response.status_code == status.HTTP_200_OK
 
     def test_get_comments_by_post_with_data(self, client, auth_headers):
-        post_resp = client.post("/posts", data={
-            "title": f"Comments By Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Comments By Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        client.post("/comments", json={
-            "comment": "Comment 1",
-            "post_id": post_id
-        }, headers=auth_headers)
+        client.post(
+            "/comments", json={"comment": "Comment 1", "post_id": post_id}, headers=auth_headers
+        )
         response = client.get(f"/comments/post/{post_id}")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
@@ -124,16 +122,16 @@ class TestComments:
         assert len(data) == 0
 
     def test_like_comment_success(self, client, auth_headers):
-        post_resp = client.post("/posts", data={
-            "title": f"Like Comment Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Like Comment Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        comment_resp = client.post("/comments", json={
-            "comment": "Like me",
-            "post_id": post_id
-        }, headers=auth_headers)
+        comment_resp = client.post(
+            "/comments", json={"comment": "Like me", "post_id": post_id}, headers=auth_headers
+        )
         assert comment_resp.status_code == status.HTTP_201_CREATED
         comment_id = comment_resp.json()["id"]
         like_resp = client.post(f"/comments/{comment_id}/like", headers=auth_headers)
@@ -148,39 +146,37 @@ class TestComments:
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_get_main_comments_by_post(self, client, auth_headers):
-        post_resp = client.post("/posts", data={
-            "title": f"Main Comments Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Main Comments Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        client.post("/comments", json={
-            "comment": "Main",
-            "post_id": post_id
-        }, headers=auth_headers)
+        client.post("/comments", json={"comment": "Main", "post_id": post_id}, headers=auth_headers)
         response = client.get(f"/comments/post/{post_id}/main")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert isinstance(data, list)
 
     def test_get_replies(self, client, auth_headers):
-        post_resp = client.post("/posts", data={
-            "title": f"Replies Post {uuid.uuid4()}",
-            "content": "Content"
-        }, headers=auth_headers)
+        post_resp = client.post(
+            "/posts",
+            data={"title": f"Replies Post {uuid.uuid4()}", "content": "Content"},
+            headers=auth_headers,
+        )
         assert post_resp.status_code == status.HTTP_201_CREATED
         post_id = post_resp.json()["id"]
-        parent_resp = client.post("/comments", json={
-            "comment": "Parent",
-            "post_id": post_id
-        }, headers=auth_headers)
+        parent_resp = client.post(
+            "/comments", json={"comment": "Parent", "post_id": post_id}, headers=auth_headers
+        )
         assert parent_resp.status_code == status.HTTP_201_CREATED
         parent_id = parent_resp.json()["id"]
-        client.post("/comments", json={
-            "comment": "Reply",
-            "post_id": post_id,
-            "parent_id": parent_id
-        }, headers=auth_headers)
+        client.post(
+            "/comments",
+            json={"comment": "Reply", "post_id": post_id, "parent_id": parent_id},
+            headers=auth_headers,
+        )
         response = client.get(f"/comments/post/{post_id}/replies/{parent_id}")
         assert response.status_code == status.HTTP_200_OK
         data = response.json()

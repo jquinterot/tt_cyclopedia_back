@@ -1,18 +1,18 @@
-from sqlalchemy.orm import Session
-from typing import List
 import shortuuid
+from sqlalchemy.orm import Session
 
-from .models import Comments, CommentLike
-from .schemas import Comment
-from .exceptions import CommentNotFound, CommentNotAuthorized
 from app.services.like_service import toggle_like
+
+from .exceptions import CommentNotAuthorized, CommentNotFound
+from .models import CommentLike, Comments
+from .schemas import Comment
 
 
 def _build_comment_response(comment: Comments, liked: bool = False) -> Comment:
     return Comment.from_orm(comment, liked_by_current_user=liked)
 
 
-def get_comments(db: Session) -> List[Comment]:
+def get_comments(db: Session) -> list[Comment]:
     comments = db.query(Comments).all()
     return [_build_comment_response(c, False) for c in comments]
 
@@ -74,21 +74,19 @@ def delete_comment(db: Session, comment_id: str, current_user) -> str:
     return f"Comment with id {comment_id} and its replies have been deleted"
 
 
-def get_comments_by_post(db: Session, post_id: str) -> List[Comment]:
+def get_comments_by_post(db: Session, post_id: str) -> list[Comment]:
     comments = db.query(Comments).filter(Comments.post_id == post_id).all()
     return [_build_comment_response(c, False) for c in comments]
 
 
-def get_main_comments(db: Session, post_id: str) -> List[Comment]:
+def get_main_comments(db: Session, post_id: str) -> list[Comment]:
     main_comments = (
-        db.query(Comments)
-        .filter(Comments.post_id == post_id, Comments.parent_id == None)
-        .all()
+        db.query(Comments).filter(Comments.post_id == post_id, Comments.parent_id.is_(None)).all()
     )
     return [_build_comment_response(c, False) for c in main_comments]
 
 
-def get_replies(db: Session, comment_id: str, post_id: str) -> List[Comment]:
+def get_replies(db: Session, comment_id: str, post_id: str) -> list[Comment]:
     replies = (
         db.query(Comments)
         .filter(Comments.parent_id == comment_id)
@@ -117,21 +115,20 @@ def toggle_like_comment(db: Session, comment_id: str, current_user) -> Comment:
 
 # Forum comment variants within the comments router
 
-def get_forum_comments(db: Session, forum_id: str) -> List[Comment]:
+
+def get_forum_comments(db: Session, forum_id: str) -> list[Comment]:
     comments = db.query(Comments).filter(Comments.forum_id == forum_id).all()
     return [_build_comment_response(c, False) for c in comments]
 
 
-def get_main_forum_comments(db: Session, forum_id: str) -> List[Comment]:
+def get_main_forum_comments(db: Session, forum_id: str) -> list[Comment]:
     main_comments = (
-        db.query(Comments)
-        .filter(Comments.forum_id == forum_id, Comments.parent_id == None)
-        .all()
+        db.query(Comments).filter(Comments.forum_id == forum_id, Comments.parent_id.is_(None)).all()
     )
     return [_build_comment_response(c, False) for c in main_comments]
 
 
-def get_forum_replies(db: Session, comment_id: str, forum_id: str) -> List[Comment]:
+def get_forum_replies(db: Session, comment_id: str, forum_id: str) -> list[Comment]:
     replies = (
         db.query(Comments)
         .filter(Comments.parent_id == comment_id)

@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+
 class ForumNotFound(HTTPException):
     def __init__(self):
         super().__init__(
@@ -7,6 +8,7 @@ class ForumNotFound(HTTPException):
             detail="Forum not found",
             headers={"X-Error-Code": "FORUM_001"},
         )
+
 
 class ForumNotAuthorized(HTTPException):
     def __init__(self, action="edit"):
@@ -17,6 +19,7 @@ class ForumNotAuthorized(HTTPException):
             headers={"X-Error-Code": codes.get(action, "FORUM_002")},
         )
 
+
 class ForumCommentNotFound(HTTPException):
     def __init__(self):
         super().__init__(
@@ -24,6 +27,7 @@ class ForumCommentNotFound(HTTPException):
             detail="Comment not found",
             headers={"X-Error-Code": "FORUM_004"},
         )
+
 
 class ForumCommentNotAuthorized(HTTPException):
     def __init__(self, action="edit"):

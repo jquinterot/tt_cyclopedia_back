@@ -1,12 +1,19 @@
-from sqlalchemy.orm import Session
-from typing import List, Optional
-from datetime import datetime, timezone
-import shortuuid
+from datetime import UTC, datetime
 
-from .models import Forums, ForumLike, ForumComment as ForumCommentModel, ForumCommentLike
-from .schemas import ForumResponse, ForumComment
-from .exceptions import ForumNotFound, ForumNotAuthorized, ForumCommentNotFound, ForumCommentNotAuthorized
+import shortuuid
+from sqlalchemy.orm import Session
+
 from app.services.like_service import toggle_like
+
+from .exceptions import (
+    ForumCommentNotAuthorized,
+    ForumCommentNotFound,
+    ForumNotAuthorized,
+    ForumNotFound,
+)
+from .models import ForumComment as ForumCommentModel
+from .models import ForumCommentLike, ForumLike, Forums
+from .schemas import ForumComment, ForumResponse
 
 
 def _build_forum_response(forum: Forums, liked: bool = False) -> ForumResponse:
@@ -17,7 +24,7 @@ def _build_forum_comment_response(comment: ForumCommentModel, liked: bool = Fals
     return ForumComment.from_orm(comment, liked_by_current_user=liked)
 
 
-def get_all_forums(db: Session, current_user) -> List[ForumResponse]:
+def get_all_forums(db: Session, current_user) -> list[ForumResponse]:
     forums = db.query(Forums).all()
     if not forums:
         return []
@@ -49,9 +56,7 @@ def get_forum_by_id(db: Session, forum_id: str, current_user) -> ForumResponse:
     liked = False
     if current_user:
         liked = (
-            db.query(ForumLike)
-            .filter_by(forum_id=forum_id, user_id=current_user.id)
-            .first()
+            db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first()
             is not None
         )
     return _build_forum_response(forum, liked)
@@ -64,8 +69,8 @@ def create_forum(db: Session, forum_data, current_user) -> ForumResponse:
         content=forum_data.content,
         author=current_user.username,
         likes=0,
-        timestamp=datetime.now(timezone.utc),
-        updated_timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
+        updated_timestamp=datetime.now(UTC),
     )
     db.add(new_forum)
     db.commit()
@@ -82,17 +87,15 @@ def update_forum(db: Session, forum_id: str, forum_data, current_user) -> ForumR
         raise ForumNotAuthorized(action="edit")
 
     if forum_data.title is not None:
-        setattr(forum, "title", forum_data.title)
+        forum.title = forum_data.title
     if forum_data.content is not None:
-        setattr(forum, "content", forum_data.content)
+        forum.content = forum_data.content
 
-    setattr(forum, "updated_timestamp", datetime.now(timezone.utc))
+    forum.updated_timestamp = datetime.now(UTC)
     db.commit()
 
     liked_by_current_user = (
-        db.query(ForumLike)
-        .filter_by(forum_id=forum_id, user_id=current_user.id)
-        .first()
+        db.query(ForumLike).filter_by(forum_id=forum_id, user_id=current_user.id).first()
         is not None
     )
     return _build_forum_response(forum, liked_by_current_user)
@@ -127,21 +130,22 @@ def toggle_like_forum(db: Session, forum_id: str, current_user) -> ForumResponse
 
 # Forum comment helpers
 
-def get_forum_comments(db: Session, forum_id: str) -> List[ForumComment]:
+
+def get_forum_comments(db: Session, forum_id: str) -> list[ForumComment]:
     comments = db.query(ForumCommentModel).filter(ForumCommentModel.forum_id == forum_id).all()
     return [_build_forum_comment_response(c, False) for c in comments]
 
 
-def get_main_forum_comments(db: Session, forum_id: str) -> List[ForumComment]:
+def get_main_forum_comments(db: Session, forum_id: str) -> list[ForumComment]:
     main_comments = (
         db.query(ForumCommentModel)
-        .filter(ForumCommentModel.forum_id == forum_id, ForumCommentModel.parent_id == None)
+        .filter(ForumCommentModel.forum_id == forum_id, ForumCommentModel.parent_id.is_(None))
         .all()
     )
     return [_build_forum_comment_response(c, False) for c in main_comments]
 
 
-def get_forum_comment_replies(db: Session, comment_id: str, forum_id: str) -> List[ForumComment]:
+def get_forum_comment_replies(db: Session, comment_id: str, forum_id: str) -> list[ForumComment]:
     replies = (
         db.query(ForumCommentModel)
         .filter(ForumCommentModel.parent_id == comment_id)
@@ -167,9 +171,7 @@ def create_forum_comment(db: Session, forum_id: str, comment_data, current_user)
 
 
 def update_forum_comment(db: Session, comment_id: str, comment_data, current_user) -> ForumComment:
-    item_to_update = (
-        db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
-    )
+    item_to_update = db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
     if item_to_update is None:
         raise ForumCommentNotFound()
     if item_to_update.user_id != current_user.id:
@@ -179,9 +181,7 @@ def update_forum_comment(db: Session, comment_id: str, comment_data, current_use
     db.commit()
 
     liked_by_current_user = (
-        db.query(ForumCommentLike)
-        .filter_by(comment_id=comment_id, user_id=current_user.id)
-        .first()
+        db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
         is not None
     )
     return _build_forum_comment_response(item_to_update, liked_by_current_user)
@@ -198,9 +198,7 @@ def delete_forum_comment(db: Session, comment_id: str, current_user) -> str:
 
     if comment_to_delete.parent_id is None:
         child_comments = (
-            db.query(ForumCommentModel)
-            .filter(ForumCommentModel.parent_id == comment_id)
-            .all()
+            db.query(ForumCommentModel).filter(ForumCommentModel.parent_id == comment_id).all()
         )
         for child in child_comments:
             db.delete(child)
@@ -229,7 +227,8 @@ def toggle_like_forum_comment(db: Session, comment_id: str, current_user) -> For
 
 # General forum comment endpoints (mimicking post comments behavior)
 
-def get_all_forum_comments(db: Session) -> List[ForumComment]:
+
+def get_all_forum_comments(db: Session) -> list[ForumComment]:
     comments = db.query(ForumCommentModel).all()
     return [_build_forum_comment_response(c, False) for c in comments]
 
@@ -256,10 +255,10 @@ def create_general_forum_comment(db: Session, comment_data, current_user) -> For
     return _build_forum_comment_response(new_comment, False)
 
 
-def update_general_forum_comment(db: Session, comment_id: str, comment_data, current_user) -> ForumComment:
-    item_to_update = (
-        db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
-    )
+def update_general_forum_comment(
+    db: Session, comment_id: str, comment_data, current_user
+) -> ForumComment:
+    item_to_update = db.query(ForumCommentModel).filter(ForumCommentModel.id == comment_id).first()
     if item_to_update is None:
         raise ForumCommentNotFound()
     if item_to_update.user_id != current_user.id:
@@ -269,9 +268,7 @@ def update_general_forum_comment(db: Session, comment_id: str, comment_data, cur
     db.commit()
 
     liked_by_current_user = (
-        db.query(ForumCommentLike)
-        .filter_by(comment_id=comment_id, user_id=current_user.id)
-        .first()
+        db.query(ForumCommentLike).filter_by(comment_id=comment_id, user_id=current_user.id).first()
         is not None
     )
     return _build_forum_comment_response(item_to_update, liked_by_current_user)
@@ -288,9 +285,7 @@ def delete_general_forum_comment(db: Session, comment_id: str, current_user) -> 
 
     if comment_to_delete.parent_id is None:
         child_comments = (
-            db.query(ForumCommentModel)
-            .filter(ForumCommentModel.parent_id == comment_id)
-            .all()
+            db.query(ForumCommentModel).filter(ForumCommentModel.parent_id == comment_id).all()
         )
         for child in child_comments:
             db.delete(child)
@@ -319,21 +314,24 @@ def toggle_like_general_forum_comment(db: Session, comment_id: str, current_user
 
 # Forum-specific comment endpoints (mimicking post comments behavior)
 
-def get_forum_comments_by_forum_id(db: Session, forum_id: str) -> List[ForumComment]:
+
+def get_forum_comments_by_forum_id(db: Session, forum_id: str) -> list[ForumComment]:
     comments = db.query(ForumCommentModel).filter(ForumCommentModel.forum_id == forum_id).all()
     return [_build_forum_comment_response(c, False) for c in comments]
 
 
-def get_main_forum_comments_by_forum_id(db: Session, forum_id: str) -> List[ForumComment]:
+def get_main_forum_comments_by_forum_id(db: Session, forum_id: str) -> list[ForumComment]:
     main_comments = (
         db.query(ForumCommentModel)
-        .filter(ForumCommentModel.forum_id == forum_id, ForumCommentModel.parent_id == None)
+        .filter(ForumCommentModel.forum_id == forum_id, ForumCommentModel.parent_id.is_(None))
         .all()
     )
     return [_build_forum_comment_response(c, False) for c in main_comments]
 
 
-def get_forum_comment_replies_by_forum_id(db: Session, comment_id: str, forum_id: str) -> List[ForumComment]:
+def get_forum_comment_replies_by_forum_id(
+    db: Session, comment_id: str, forum_id: str
+) -> list[ForumComment]:
     replies = (
         db.query(ForumCommentModel)
         .filter(ForumCommentModel.parent_id == comment_id)

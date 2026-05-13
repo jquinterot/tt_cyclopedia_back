@@ -1,6 +1,7 @@
-import pytest
 import uuid
+
 from fastapi import status
+
 
 class TestUsers:
     def test_get_users_endpoint(self, client, auth_headers):
@@ -24,7 +25,7 @@ class TestUsers:
         user_data = {
             "username": f"newuser_{unique}",
             "email": f"new_{unique}@example.com",
-            "password": "testpass123"
+            "password": "testpass123",
         }
         response = client.post("/users", json=user_data)
         assert response.status_code == status.HTTP_201_CREATED
@@ -34,40 +35,37 @@ class TestUsers:
 
     def test_create_user_duplicate_username(self, client):
         # testuser already exists from conftest
-        response = client.post("/users", json={
-            "username": "testuser",
-            "email": "unique@example.com",
-            "password": "testpass123"
-        })
+        response = client.post(
+            "/users",
+            json={"username": "testuser", "email": "unique@example.com", "password": "testpass123"},
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_create_user_duplicate_email(self, client):
-        response = client.post("/users", json={
-            "username": "uniqueuser123",
-            "email": "test@example.com",
-            "password": "testpass123"
-        })
+        response = client.post(
+            "/users",
+            json={
+                "username": "uniqueuser123",
+                "email": "test@example.com",
+                "password": "testpass123",
+            },
+        )
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_login_endpoint(self, client):
-        response = client.post("/users/login", json={
-            "username": "fakeuser",
-            "password": "fakepass"
-        })
+        response = client.post(
+            "/users/login", json={"username": "fakeuser", "password": "fakepass"}
+        )
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_login_success(self, client):
         unique = uuid.uuid4().hex[:8]
         username = f"logintest_{unique}"
-        client.post("/users", json={
-            "username": username,
-            "email": f"{username}@test.com",
-            "password": "pass12345"
-        })
-        response = client.post("/users/login", json={
-            "username": username,
-            "password": "pass12345"
-        })
+        client.post(
+            "/users",
+            json={"username": username, "email": f"{username}@test.com", "password": "pass12345"},
+        )
+        response = client.post("/users/login", json={"username": username, "password": "pass12345"})
         assert response.status_code == status.HTTP_200_OK
         data = response.json()
         assert "access_token" in data
@@ -77,15 +75,13 @@ class TestUsers:
     def test_login_wrong_password(self, client):
         unique = uuid.uuid4().hex[:8]
         username = f"wrongpass_{unique}"
-        client.post("/users", json={
-            "username": username,
-            "email": f"{username}@test.com",
-            "password": "pass12345"
-        })
-        response = client.post("/users/login", json={
-            "username": username,
-            "password": "wrongpassword"
-        })
+        client.post(
+            "/users",
+            json={"username": username, "email": f"{username}@test.com", "password": "pass12345"},
+        )
+        response = client.post(
+            "/users/login", json={"username": username, "password": "wrongpassword"}
+        )
         assert response.status_code == status.HTTP_401_UNAUTHORIZED
 
     def test_delete_user_unauthorized(self, client):
@@ -112,17 +108,13 @@ class TestUsers:
         # Create a disposable user
         unique = uuid.uuid4().hex[:8]
         username = f"deluser_{unique}"
-        create = client.post("/users", json={
-            "username": username,
-            "email": f"{username}@test.com",
-            "password": "pass12345"
-        })
+        create = client.post(
+            "/users",
+            json={"username": username, "email": f"{username}@test.com", "password": "pass12345"},
+        )
         assert create.status_code == status.HTTP_201_CREATED
         # Login
-        login = client.post("/users/login", json={
-            "username": username,
-            "password": "pass12345"
-        })
+        login = client.post("/users/login", json={"username": username, "password": "pass12345"})
         assert login.status_code == status.HTTP_200_OK
         token = login.json()["access_token"]
         headers = {"Authorization": f"Bearer {token}"}

@@ -1,10 +1,10 @@
 from datetime import datetime
-from typing import Optional, Dict
-from pydantic import BaseModel, field_validator, ConfigDict, Field
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class EquipmentSummary(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra='forbid')
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
     id: str = Field(..., description="Equipment ID")
     name: str = Field(..., description="Equipment name")
     brand: str = Field(..., description="Equipment brand")
@@ -12,17 +12,17 @@ class EquipmentSummary(BaseModel):
 
 
 class PostBase(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra='forbid')
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
     title: str = Field(..., min_length=1, max_length=200, description="Post title")
     content: str = Field(..., min_length=1, max_length=50000, description="Post content")
     image_url: str = Field(..., description="URL to post image")
     likes: int = Field(0, ge=0, description="Number of likes")
     author: str = Field(..., description="Author username")
     timestamp: datetime = Field(..., description="Creation timestamp")
-    stats: Optional[Dict[str, float]] = Field(None, description="Optional stats dictionary")
-    equipment_id: Optional[str] = Field(None, description="Linked equipment ID")
+    stats: dict[str, float] | None = Field(None, description="Optional stats dictionary")
+    equipment_id: str | None = Field(None, description="Linked equipment ID")
 
-    @field_validator('stats')
+    @field_validator("stats")
     @classmethod
     def validate_stats(cls, v):
         if v is not None:
@@ -39,10 +39,16 @@ class PostCreate(PostBase):
 class PostResponse(PostBase):
     id: str = Field(..., description="Post ID")
     likedByCurrentUser: bool = Field(..., description="Whether current user liked this post")
-    equipment: Optional[EquipmentSummary] = Field(None, description="Linked equipment summary")
+    equipment: EquipmentSummary | None = Field(None, description="Linked equipment summary")
 
     @classmethod
-    def from_orm(cls, obj, liked_by_current_user: bool = False, equipment: Optional[EquipmentSummary] = None, likes_count: int = 0):
+    def from_orm(
+        cls,
+        obj,
+        liked_by_current_user: bool = False,
+        equipment: EquipmentSummary | None = None,
+        likes_count: int = 0,
+    ):
         return cls(
             id=str(obj.id),
             title=str(obj.title),
@@ -59,6 +65,6 @@ class PostResponse(PostBase):
 
 
 class PostLikeResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True, extra='forbid')
+    model_config = ConfigDict(from_attributes=True, extra="forbid")
     user_id: str = Field(..., description="User ID who liked")
     created_at: datetime = Field(..., description="Like timestamp")

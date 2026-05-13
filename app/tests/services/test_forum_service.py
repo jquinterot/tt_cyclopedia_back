@@ -1,13 +1,15 @@
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
+from app.routers.forums.exceptions import ForumNotAuthorized, ForumNotFound
 from app.routers.forums.service import (
+    create_forum,
+    delete_forum,
     get_all_forums,
     get_forum_by_id,
-    create_forum,
     update_forum,
-    delete_forum,
 )
-from app.routers.forums.exceptions import ForumNotFound, ForumNotAuthorized
 
 
 class FakeUser:

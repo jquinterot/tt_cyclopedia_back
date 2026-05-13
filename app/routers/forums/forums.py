@@ -1,21 +1,22 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, Depends, status
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.auth.dependencies import get_current_user, get_current_user_optional
-from app.routers.users.models import Users
 from app.config.postgres_config import get_db
 from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
+from app.routers.users.models import Users
+
+from . import service
 from .schemas import (
-    ForumCreate,
-    ForumResponse,
-    ForumUpdate,
     ForumComment,
     ForumCommentCreate,
     ForumCommentCreateNested,
     ForumCommentUpdate,
+    ForumCreate,
+    ForumResponse,
+    ForumUpdate,
 )
-from . import service
 
 router = APIRouter(prefix="/forums")
 
@@ -24,7 +25,7 @@ class MessageResponse(BaseModel):
     detail: str
 
 
-@router.get("", response_model=List[ForumResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[ForumResponse], status_code=status.HTTP_200_OK)
 def get_all_forums(
     db: Session = Depends(get_db),
     current_user: Users = Depends(get_current_user_optional),
@@ -88,7 +89,7 @@ def toggle_like_forum(
 
 # Forum Comments Endpoints
 @router.get(
-    "/{forum_id}/comments", response_model=List[ForumComment], status_code=status.HTTP_200_OK
+    "/{forum_id}/comments", response_model=list[ForumComment], status_code=status.HTTP_200_OK
 )
 def get_forum_comments(
     forum_id: str,
@@ -100,7 +101,7 @@ def get_forum_comments(
 
 @router.get(
     "/{forum_id}/comments/main",
-    response_model=List[ForumComment],
+    response_model=list[ForumComment],
     status_code=status.HTTP_200_OK,
 )
 def get_main_forum_comments(
@@ -113,7 +114,7 @@ def get_main_forum_comments(
 
 @router.get(
     "/{forum_id}/comments/replies/{comment_id}",
-    response_model=List[ForumComment],
+    response_model=list[ForumComment],
     status_code=status.HTTP_200_OK,
 )
 def get_forum_comments_replied_to(
@@ -191,7 +192,7 @@ def toggle_like_forum_comment(
 
 
 # General forum comment endpoints (mimicking post comments behavior)
-@router.get("/comments", response_model=List[ForumComment], status_code=status.HTTP_200_OK)
+@router.get("/comments", response_model=list[ForumComment], status_code=status.HTTP_200_OK)
 def get_all_forum_comments(
     db: Session = Depends(get_db),
     _: bool = Depends(read_rate_limit),
@@ -218,9 +219,7 @@ def create_forum_comment(
     return service.create_general_forum_comment(db, comment, current_user)
 
 
-@router.put(
-    "/comments/{comment_id}", response_model=ForumComment, status_code=status.HTTP_200_OK
-)
+@router.put("/comments/{comment_id}", response_model=ForumComment, status_code=status.HTTP_200_OK)
 def update_forum_comment_general(
     comment_id: str,
     updated_comment: ForumCommentUpdate,
@@ -246,12 +245,8 @@ def delete_forum_comment_general(
     return {"detail": detail}
 
 
-@router.post(
-    "/comments/{comment_id}/like", response_model=ForumComment, status_code=200
-)
-@router.post(
-    "/comments/{comment_id}/toggle-like", response_model=ForumComment, status_code=200
-)
+@router.post("/comments/{comment_id}/like", response_model=ForumComment, status_code=200)
+@router.post("/comments/{comment_id}/toggle-like", response_model=ForumComment, status_code=200)
 def toggle_like_forum_comment_general(
     comment_id: str,
     current_user: Users = Depends(get_current_user),
@@ -264,7 +259,7 @@ def toggle_like_forum_comment_general(
 # Forum-specific comment endpoints (mimicking post comments behavior)
 @router.get(
     "/forum/{forum_id}/comments",
-    response_model=List[ForumComment],
+    response_model=list[ForumComment],
     status_code=status.HTTP_200_OK,
 )
 def get_forum_comments_by_forum_id(
@@ -277,7 +272,7 @@ def get_forum_comments_by_forum_id(
 
 @router.get(
     "/forum/{forum_id}/comments/main",
-    response_model=List[ForumComment],
+    response_model=list[ForumComment],
     status_code=status.HTTP_200_OK,
 )
 def get_main_forum_comments_by_forum_id(
@@ -290,7 +285,7 @@ def get_main_forum_comments_by_forum_id(
 
 @router.get(
     "/forum/{forum_id}/comments/replies/{comment_id}",
-    response_model=List[ForumComment],
+    response_model=list[ForumComment],
     status_code=status.HTTP_200_OK,
 )
 def get_forum_comments_replied_to_by_forum_id(

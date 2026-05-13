@@ -1,10 +1,10 @@
 import os
+from datetime import UTC, datetime, timedelta
+
 import jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jwt.exceptions import ExpiredSignatureError, InvalidTokenError
-from datetime import datetime, timedelta, timezone
-from typing import Optional
-from fastapi import HTTPException, status, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY")
 if not SECRET_KEY:
@@ -14,18 +14,19 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 security = HTTPBearer()
 
+
 class JWTHandler:
     def __init__(self):
         self.secret_key = SECRET_KEY
         self.algorithm = ALGORITHM
         self.access_token_expire_minutes = ACCESS_TOKEN_EXPIRE_MINUTES
 
-    def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None):
+    def create_access_token(self, data: dict, expires_delta: timedelta | None = None):
         to_encode = data.copy()
         if expires_delta:
-            expire = datetime.now(timezone.utc) + expires_delta
+            expire = datetime.now(UTC) + expires_delta
         else:
-            expire = datetime.now(timezone.utc) + timedelta(minutes=self.access_token_expire_minutes)
+            expire = datetime.now(UTC) + timedelta(minutes=self.access_token_expire_minutes)
         to_encode.update({"exp": expire})
         encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
         return encoded_jwt
@@ -59,4 +60,5 @@ class JWTHandler:
         username = self.verify_token(token)
         return username
 
-jwt_handler = JWTHandler() 
+
+jwt_handler = JWTHandler()

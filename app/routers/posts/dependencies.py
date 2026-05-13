@@ -1,10 +1,12 @@
 from fastapi import Depends
 from sqlalchemy.orm import Session
-from app.config.postgres_config import get_db
+
 from app.auth.dependencies import get_current_user
+from app.config.postgres_config import get_db
 from app.routers.users.models import Users
+
+from .exceptions import PostNotAuthorized, PostNotFound
 from .models import Posts
-from .exceptions import PostNotFound, PostNotAuthorized
 
 
 def valid_post_id(post_id: str, db: Session = Depends(get_db)) -> Posts:

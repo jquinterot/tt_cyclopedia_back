@@ -1,8 +1,8 @@
-from fastapi import HTTPException, Request, Depends
-from typing import Optional, Tuple
 import time
 from collections import defaultdict
 from functools import wraps
+
+from fastapi import Depends, HTTPException, Request
 
 from app.auth.dependencies import get_current_user_optional
 from app.routers.users.models import Users
@@ -20,14 +20,12 @@ class SlidingWindowRateLimiter:
         self.window_seconds = window_seconds
         self.requests: dict = defaultdict(list)
 
-    def is_allowed(self, identifier: str) -> Tuple[bool, int]:
+    def is_allowed(self, identifier: str) -> tuple[bool, int]:
         now = time.time()
         window_start = now - self.window_seconds
 
         # Clean old requests
-        self.requests[identifier] = [
-            t for t in self.requests[identifier] if t > window_start
-        ]
+        self.requests[identifier] = [t for t in self.requests[identifier] if t > window_start]
 
         if len(self.requests[identifier]) < self.max_requests:
             self.requests[identifier].append(now)
@@ -58,6 +56,7 @@ READ_LIMITER = SlidingWindowRateLimiter(max_requests=100, window_seconds=60)
 # FastAPI dependencies
 # =============================================================================
 
+
 async def auth_rate_limit(request: Request):
     """
     Auth endpoint rate limiter – 5 requests / minute / IP.
@@ -80,7 +79,7 @@ async def auth_rate_limit(request: Request):
 
 async def write_rate_limit(
     request: Request,
-    current_user: Optional[Users] = Depends(get_current_user_optional),
+    current_user: Users | None = Depends(get_current_user_optional),
 ):
     """
     Write endpoint rate limiter – 30 requests / minute / user (or IP when
@@ -103,7 +102,7 @@ async def write_rate_limit(
 
 async def read_rate_limit(
     request: Request,
-    current_user: Optional[Users] = Depends(get_current_user_optional),
+    current_user: Users | None = Depends(get_current_user_optional),
 ):
     """
     Read endpoint rate limiter – 100 requests / minute / user (or IP when
@@ -133,6 +132,7 @@ admin_rate_limit = write_rate_limit
 # =============================================================================
 # DEPRECATED decorator (kept for backward compatibility)
 # =============================================================================
+
 
 def rate_limit(max_requests: int, window_seconds: int):
     """

@@ -1,15 +1,17 @@
-from fastapi import Depends, HTTPException, status, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+
+from app.auth.jwt_handler import jwt_handler
 from app.config.postgres_config import SessionLocal
 from app.routers.users.models import Users
-from app.auth.jwt_handler import jwt_handler
-from typing import Optional
 
 security = HTTPBearer(auto_error=False)
 
+
 class AdminException(Exception):
     pass
+
 
 async def get_db():
     db = SessionLocal()
@@ -18,9 +20,9 @@ async def get_db():
     finally:
         db.close()
 
+
 async def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
 ) -> Users:
     if not credentials:
         raise HTTPException(
@@ -47,10 +49,11 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer", "X-Error-Code": "AUTH_002"},
         )
 
+
 async def get_current_user_optional(
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
-    db: Session = Depends(get_db)
-) -> Optional[Users]:
+    credentials: HTTPAuthorizationCredentials | None = Depends(security),
+    db: Session = Depends(get_db),
+) -> Users | None:
     if not credentials:
         return None
     try:
@@ -60,9 +63,9 @@ async def get_current_user_optional(
     except Exception:
         return None
 
+
 async def get_current_admin(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
+    credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)
 ) -> Users:
     user = await get_current_user(credentials, db)
     if not user.is_admin:

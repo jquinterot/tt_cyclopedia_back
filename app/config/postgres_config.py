@@ -1,8 +1,9 @@
-from sqlalchemy import create_engine, DDL, event
+import os
+
+from dotenv import load_dotenv
+from sqlalchemy import DDL, create_engine, event
 from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import NullPool
-from dotenv import load_dotenv
-import os
 
 load_dotenv()
 # Use SQL_DB for app, SQL_LITE_DB for tests
@@ -15,12 +16,14 @@ is_test = os.getenv("TESTING", "false").lower() == "true" or "test" in postgres_
 
 # Add SSL configuration only for production (not tests)
 connect_args = {}
-if not is_test and ("sslmode=require" in postgres_db or os.getenv("DATABASE_SSL", "false").lower() == "true"):
+if not is_test and (
+    "sslmode=require" in postgres_db or os.getenv("DATABASE_SSL", "false").lower() == "true"
+):
     connect_args = {
         "sslmode": "require",
         "sslrootcert": os.getenv("SSL_ROOT_CERT", ""),
         "sslcert": os.getenv("SSL_CLIENT_CERT", ""),
-        "sslkey": os.getenv("SSL_CLIENT_KEY", "")
+        "sslkey": os.getenv("SSL_CLIENT_KEY", ""),
     }
     # Remove sslmode from URL if present, add as connect_args
     postgres_db = postgres_db.replace("?sslmode=require", "")
@@ -31,30 +34,33 @@ engine = create_engine(
     pool_pre_ping=True,
     pool_recycle=300,
     poolclass=NullPool if os.getenv("ENVIRONMENT", "").lower() == "production" else None,
-    connect_args=connect_args if connect_args else {}
+    connect_args=connect_args if connect_args else {},
 )
 
 # Enable foreign key support for SQLite
 if engine.dialect.name == "sqlite":
+
     @event.listens_for(engine, "connect")
     def set_sqlite_pragma(dbapi_connection, connection_record):
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
+
 Base = declarative_base()
 
 # Refactored: Only attach schema event when explicitly called
 
+
 def attach_schema_event(Base):
     if "sqlite" not in str(engine.url):
         event.listen(
-            Base.metadata,
-            'before_create',
-            DDL("CREATE SCHEMA IF NOT EXISTS cyclopedia_owner")
+            Base.metadata, "before_create", DDL("CREATE SCHEMA IF NOT EXISTS cyclopedia_owner")
         )
 
+
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
     db = SessionLocal()
@@ -63,6 +69,7 @@ def get_db():
     finally:
         db.close()
 
+
 def is_sqlite():
     """Check if we're using SQLite database (for tests)"""
     # Check both environment variables and engine URL
@@ -70,11 +77,13 @@ def is_sqlite():
     engine_url = str(engine.url) if engine else ""
     return "sqlite" in db_url.lower() or "sqlite" in engine_url.lower()
 
+
 def get_schema_kwargs():
     """Get schema kwargs based on database type (never set schema for SQLite)"""
     if is_sqlite():
         return {}
     return {"schema": "cyclopedia_owner"}
+
 
 def get_fk_reference(table_name):
     """Get foreign key reference with proper schema (never set schema for SQLite)"""

@@ -1,24 +1,25 @@
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from contextlib import asynccontextmanager
 from sqlalchemy.exc import SQLAlchemyError
+
+from app.config.logging_config import setup_logging
+from app.middleware.log_to_mongo import MongoLoggingMiddleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.routers.auth import router as auth_router
 from app.routers.comments.comments import router as comments_router
+from app.routers.equipment import router as equipment_router
+from app.routers.forums.comment_router import router as forum_comments_router
+from app.routers.forums.router import router as forums_router
+from app.routers.logs.logs import router as logs_router
 from app.routers.posts.posts import router as posts_router
 from app.routers.users.users import router as users_router
-from app.routers.forums.router import router as forums_router
-from app.routers.forums.comment_router import router as forum_comments_router
-from fastapi.staticfiles import StaticFiles
-from app.middleware.log_to_mongo import MongoLoggingMiddleware
-from app.routers.logs.logs import router as logs_router
-from app.routers.auth import router as auth_router
-from app.routers.equipment import router as equipment_router
-from app.config.postgres_config import Base, attach_schema_event
-from app.middleware.security_headers import SecurityHeadersMiddleware
-from app.config.logging_config import setup_logging
 from app.utils.api_error import APIError, api_error_handler
-import os
 
 # Setup logging with sensitive data filtering
 setup_logging()
@@ -39,7 +40,9 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://localhost:5173").split(
+    ","
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -82,7 +85,10 @@ async def generic_exception_handler(request, exc: Exception):
     """Catch all unhandled exceptions to prevent internal error leakage."""
     return JSONResponse(
         status_code=500,
-        content={"detail": "An unexpected error occurred. Please try again later.", "code": "INTERNAL_001"},
+        content={
+            "detail": "An unexpected error occurred. Please try again later.",
+            "code": "INTERNAL_001",
+        },
     )
 
 

@@ -4,7 +4,7 @@ Includes blades and rubbers from major brands.
 Image URLs use manufacturer websites or placeholders.
 """
 
-from typing import List, Dict, Any
+from typing import Any
 
 # Image URLs - using manufacturer sites or placeholder pattern
 # In production, host these images yourself or use a CDN
@@ -19,14 +19,16 @@ BRAND_LOGOS = {
     "Stiga": "https://www.stigasports.com/media/image/1a/3e/5e/stiga-logo.png",
 }
 
+
 def get_product_image(brand: str, name: str, category: str) -> str:
     """Generate a placeholder or manufacturer image URL."""
     # In production, replace with actual product images
     slug = name.lower().replace(" ", "-").replace(".", "").replace("/", "-").replace("+", "-plus")
     return f"/static/equipment/{category}s/{brand.lower()}-{slug}.jpg"
 
+
 # ========== BLADES ==========
-BLADES: List[Dict[str, Any]] = [
+BLADES: list[dict[str, Any]] = [
     # Butterfly
     {
         "name": "Viscaria",
@@ -36,10 +38,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 179.99,
         "release_year": 1993,
         "specs": {
-            "speed": 87, "control": 72, "stiffness": 78, "hardness": 70,
-            "weight_min": 85, "weight_max": 92, "plies": 5, "material": "Wood + Arylate-Carbon",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 87,
+            "control": 72,
+            "stiffness": 78,
+            "hardness": 70,
+            "weight_min": 85,
+            "weight_max": 92,
+            "plies": 5,
+            "material": "Wood + Arylate-Carbon",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     {
         "name": "Timo Boll ALC",
@@ -49,10 +59,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 179.99,
         "release_year": 2005,
         "specs": {
-            "speed": 82, "control": 78, "stiffness": 72, "hardness": 65,
-            "weight_min": 85, "weight_max": 92, "plies": 7, "material": "Wood + Arylate-Carbon",
-            "thickness": 5.7, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 82,
+            "control": 78,
+            "stiffness": 72,
+            "hardness": 65,
+            "weight_min": 85,
+            "weight_max": 92,
+            "plies": 7,
+            "material": "Wood + Arylate-Carbon",
+            "thickness": 5.7,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     {
         "name": "Innerforce Layer ZLC",
@@ -62,10 +80,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 199.99,
         "release_year": 2013,
         "specs": {
-            "speed": 90, "control": 68, "stiffness": 82, "hardness": 75,
-            "weight_min": 86, "weight_max": 93, "plies": 5, "material": "Wood + ZLC",
-            "thickness": 5.7, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 90,
+            "control": 68,
+            "stiffness": 82,
+            "hardness": 75,
+            "weight_min": 86,
+            "weight_max": 93,
+            "plies": 5,
+            "material": "Wood + ZLC",
+            "thickness": 5.7,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     {
         "name": "Primorac OFF-",
@@ -75,10 +101,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 94.99,
         "release_year": 1985,
         "specs": {
-            "speed": 65, "control": 88, "stiffness": 55, "hardness": 55,
-            "weight_min": 82, "weight_max": 89, "plies": 5, "material": "All Wood",
-            "thickness": 5.6, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 65,
+            "control": 88,
+            "stiffness": 55,
+            "hardness": 55,
+            "weight_min": 82,
+            "weight_max": 89,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.6,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     # Donic
     {
@@ -89,10 +123,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 129.99,
         "release_year": 2000,
         "specs": {
-            "speed": 80, "control": 80, "stiffness": 70, "hardness": 65,
-            "weight_min": 82, "weight_max": 88, "plies": 5, "material": "Wood + Carbon",
-            "thickness": 5.6, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 80,
+            "control": 80,
+            "stiffness": 70,
+            "hardness": 65,
+            "weight_min": 82,
+            "weight_max": 88,
+            "plies": 5,
+            "material": "Wood + Carbon",
+            "thickness": 5.6,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     {
         "name": "Ovtcharov No. 1",
@@ -102,10 +144,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 149.99,
         "release_year": 2015,
         "specs": {
-            "speed": 88, "control": 70, "stiffness": 80, "hardness": 72,
-            "weight_min": 85, "weight_max": 92, "plies": 7, "material": "Wood + Carbon",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 88,
+            "control": 70,
+            "stiffness": 80,
+            "hardness": 72,
+            "weight_min": 85,
+            "weight_max": 92,
+            "plies": 7,
+            "material": "Wood + Carbon",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Appelgren Allplay",
@@ -115,10 +165,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 74.99,
         "release_year": 1990,
         "specs": {
-            "speed": 62, "control": 90, "stiffness": 50, "hardness": 50,
-            "weight_min": 80, "weight_max": 86, "plies": 5, "material": "All Wood",
-            "thickness": 5.5, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 62,
+            "control": 90,
+            "stiffness": 50,
+            "hardness": 50,
+            "weight_min": 80,
+            "weight_max": 86,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.5,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     # DHS
     {
@@ -129,10 +187,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 159.99,
         "release_year": 2013,
         "specs": {
-            "speed": 92, "control": 68, "stiffness": 85, "hardness": 78,
-            "weight_min": 88, "weight_max": 95, "plies": 7, "material": "Wood + Arylate-Carbon",
-            "thickness": 6.0, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 92,
+            "control": 68,
+            "stiffness": 85,
+            "hardness": 78,
+            "weight_min": 88,
+            "weight_max": 95,
+            "plies": 7,
+            "material": "Wood + Arylate-Carbon",
+            "thickness": 6.0,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Hurricane Long 2",
@@ -142,10 +208,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 139.99,
         "release_year": 2005,
         "specs": {
-            "speed": 85, "control": 75, "stiffness": 75, "hardness": 70,
-            "weight_min": 86, "weight_max": 92, "plies": 5, "material": "Wood + Carbon",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 85,
+            "control": 75,
+            "stiffness": 75,
+            "hardness": 70,
+            "weight_min": 86,
+            "weight_max": 92,
+            "plies": 5,
+            "material": "Wood + Carbon",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Power G13",
@@ -155,10 +229,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 89.99,
         "release_year": 2018,
         "specs": {
-            "speed": 78, "control": 76, "stiffness": 72, "hardness": 68,
-            "weight_min": 84, "weight_max": 90, "plies": 7, "material": "Wood + Glass Fiber",
-            "thickness": 5.7, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 78,
+            "control": 76,
+            "stiffness": 72,
+            "hardness": 68,
+            "weight_min": 84,
+            "weight_max": 90,
+            "plies": 7,
+            "material": "Wood + Glass Fiber",
+            "thickness": 5.7,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     # Nittaku
     {
@@ -169,10 +251,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 189.99,
         "release_year": 2008,
         "specs": {
-            "speed": 83, "control": 82, "stiffness": 72, "hardness": 68,
-            "weight_min": 84, "weight_max": 90, "plies": 5, "material": "Wood + Carbon",
-            "thickness": 5.7, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 83,
+            "control": 82,
+            "stiffness": 72,
+            "hardness": 68,
+            "weight_min": 84,
+            "weight_max": 90,
+            "plies": 5,
+            "material": "Wood + Carbon",
+            "thickness": 5.7,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Barwell",
@@ -182,10 +272,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 99.99,
         "release_year": 1995,
         "specs": {
-            "speed": 64, "control": 88, "stiffness": 55, "hardness": 52,
-            "weight_min": 82, "weight_max": 88, "plies": 5, "material": "All Wood",
-            "thickness": 5.6, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 64,
+            "control": 88,
+            "stiffness": 55,
+            "hardness": 52,
+            "weight_min": 82,
+            "weight_max": 88,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.6,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Gyroblade",
@@ -195,10 +293,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 169.99,
         "release_year": 2019,
         "specs": {
-            "speed": 86, "control": 74, "stiffness": 76, "hardness": 70,
-            "weight_min": 85, "weight_max": 91, "plies": 5, "material": "Wood + Special Fiber",
-            "thickness": 5.9, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 86,
+            "control": 74,
+            "stiffness": 76,
+            "hardness": 70,
+            "weight_min": 85,
+            "weight_max": 91,
+            "plies": 5,
+            "material": "Wood + Special Fiber",
+            "thickness": 5.9,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     # Xiom
     {
@@ -209,10 +315,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 149.99,
         "release_year": 2020,
         "specs": {
-            "speed": 90, "control": 70, "stiffness": 82, "hardness": 75,
-            "weight_min": 85, "weight_max": 92, "plies": 5, "material": "Wood + Arylate-Carbon",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 90,
+            "control": 70,
+            "stiffness": 82,
+            "hardness": 75,
+            "weight_min": 85,
+            "weight_max": 92,
+            "plies": 5,
+            "material": "Wood + Arylate-Carbon",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Stradivarius",
@@ -222,10 +336,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 109.99,
         "release_year": 2010,
         "specs": {
-            "speed": 76, "control": 84, "stiffness": 65, "hardness": 60,
-            "weight_min": 83, "weight_max": 89, "plies": 7, "material": "All Wood",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 76,
+            "control": 84,
+            "stiffness": 65,
+            "hardness": 60,
+            "weight_min": 83,
+            "weight_max": 89,
+            "plies": 7,
+            "material": "All Wood",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     {
         "name": "Offensive S",
@@ -235,10 +357,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 79.99,
         "release_year": 2012,
         "specs": {
-            "speed": 72, "control": 80, "stiffness": 62, "hardness": 58,
-            "weight_min": 82, "weight_max": 88, "plies": 5, "material": "All Wood",
-            "thickness": 5.7, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 72,
+            "control": 80,
+            "stiffness": 62,
+            "hardness": 58,
+            "weight_min": 82,
+            "weight_max": 88,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.7,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     # Tibhar
     {
@@ -249,10 +379,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 89.99,
         "release_year": 2015,
         "specs": {
-            "speed": 78, "control": 78, "stiffness": 68, "hardness": 65,
-            "weight_min": 84, "weight_max": 90, "plies": 7, "material": "All Wood",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 78,
+            "control": 78,
+            "stiffness": 68,
+            "hardness": 65,
+            "weight_min": 84,
+            "weight_max": 90,
+            "plies": 7,
+            "material": "All Wood",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Balsa SGS",
@@ -262,10 +400,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 79.99,
         "release_year": 2010,
         "specs": {
-            "speed": 55, "control": 92, "stiffness": 45, "hardness": 40,
-            "weight_min": 70, "weight_max": 78, "plies": 5, "material": "Balsa + Wood",
-            "thickness": 6.5, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 55,
+            "control": 92,
+            "stiffness": 45,
+            "hardness": 40,
+            "weight_min": 70,
+            "weight_max": 78,
+            "plies": 5,
+            "material": "Balsa + Wood",
+            "thickness": 6.5,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Samsonov Force Pro Black Edition",
@@ -275,10 +421,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 159.99,
         "release_year": 2018,
         "specs": {
-            "speed": 90, "control": 68, "stiffness": 85, "hardness": 78,
-            "weight_min": 86, "weight_max": 93, "plies": 5, "material": "Wood + Carbon",
-            "thickness": 5.9, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 90,
+            "control": 68,
+            "stiffness": 85,
+            "hardness": 78,
+            "weight_min": 86,
+            "weight_max": 93,
+            "plies": 5,
+            "material": "Wood + Carbon",
+            "thickness": 5.9,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     # Andro
     {
@@ -289,10 +443,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 84.99,
         "release_year": 2016,
         "specs": {
-            "speed": 78, "control": 76, "stiffness": 68, "hardness": 62,
-            "weight_min": 84, "weight_max": 90, "plies": 7, "material": "All Wood",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 78,
+            "control": 76,
+            "stiffness": 68,
+            "hardness": 62,
+            "weight_min": 84,
+            "weight_max": 90,
+            "plies": 7,
+            "material": "All Wood",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Novacell OFF",
@@ -302,10 +464,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 119.99,
         "release_year": 2014,
         "specs": {
-            "speed": 82, "control": 76, "stiffness": 72, "hardness": 66,
-            "weight_min": 85, "weight_max": 91, "plies": 5, "material": "Wood + Cellulose-Carbon",
-            "thickness": 5.7, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 82,
+            "control": 76,
+            "stiffness": 72,
+            "hardness": 66,
+            "weight_min": 85,
+            "weight_max": 91,
+            "plies": 5,
+            "material": "Wood + Cellulose-Carbon",
+            "thickness": 5.7,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Wood ALL+/OFF-",
@@ -315,10 +485,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 49.99,
         "release_year": 2012,
         "specs": {
-            "speed": 65, "control": 85, "stiffness": 55, "hardness": 52,
-            "weight_min": 82, "weight_max": 88, "plies": 5, "material": "All Wood",
-            "thickness": 5.6, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 65,
+            "control": 85,
+            "stiffness": 55,
+            "hardness": 52,
+            "weight_min": 82,
+            "weight_max": 88,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.6,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     # Stiga
     {
@@ -329,10 +507,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 99.99,
         "release_year": 1980,
         "specs": {
-            "speed": 78, "control": 78, "stiffness": 68, "hardness": 62,
-            "weight_min": 85, "weight_max": 92, "plies": 7, "material": "All Wood",
-            "thickness": 6.0, "head_size": "Standard", "handle_types": "FL,ST,AN,CS"
-        }
+            "speed": 78,
+            "control": 78,
+            "stiffness": 68,
+            "hardness": 62,
+            "weight_min": 85,
+            "weight_max": 92,
+            "plies": 7,
+            "material": "All Wood",
+            "thickness": 6.0,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN,CS",
+        },
     },
     {
         "name": "Carbonado 245",
@@ -342,10 +528,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 199.99,
         "release_year": 2015,
         "specs": {
-            "speed": 95, "control": 62, "stiffness": 88, "hardness": 82,
-            "weight_min": 87, "weight_max": 94, "plies": 5, "material": "Wood + Textreme Carbon",
-            "thickness": 5.8, "head_size": "Standard", "handle_types": "FL,ST"
-        }
+            "speed": 95,
+            "control": 62,
+            "stiffness": 88,
+            "hardness": 82,
+            "weight_min": 87,
+            "weight_max": 94,
+            "plies": 5,
+            "material": "Wood + Textreme Carbon",
+            "thickness": 5.8,
+            "head_size": "Standard",
+            "handle_types": "FL,ST",
+        },
     },
     {
         "name": "Allround Evolution",
@@ -355,10 +549,18 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 74.99,
         "release_year": 2008,
         "specs": {
-            "speed": 66, "control": 86, "stiffness": 58, "hardness": 55,
-            "weight_min": 82, "weight_max": 88, "plies": 5, "material": "All Wood",
-            "thickness": 5.6, "head_size": "Standard", "handle_types": "FL,ST,AN"
-        }
+            "speed": 66,
+            "control": 86,
+            "stiffness": 58,
+            "hardness": 55,
+            "weight_min": 82,
+            "weight_max": 88,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.6,
+            "head_size": "Standard",
+            "handle_types": "FL,ST,AN",
+        },
     },
     {
         "name": "Defensive Pro",
@@ -368,15 +570,23 @@ BLADES: List[Dict[str, Any]] = [
         "price_usd": 79.99,
         "release_year": 2010,
         "specs": {
-            "speed": 52, "control": 94, "stiffness": 42, "hardness": 38,
-            "weight_min": 80, "weight_max": 86, "plies": 5, "material": "All Wood",
-            "thickness": 5.5, "head_size": "Oversize", "handle_types": "FL,ST"
-        }
+            "speed": 52,
+            "control": 94,
+            "stiffness": 42,
+            "hardness": 38,
+            "weight_min": 80,
+            "weight_max": 86,
+            "plies": 5,
+            "material": "All Wood",
+            "thickness": 5.5,
+            "head_size": "Oversize",
+            "handle_types": "FL,ST",
+        },
     },
 ]
 
 # ========== RUBBERS ==========
-RUBBERS: List[Dict[str, Any]] = [
+RUBBERS: list[dict[str, Any]] = [
     # Butterfly
     {
         "name": "Tenergy 05",
@@ -386,10 +596,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 79.99,
         "release_year": 2008,
         "specs": {
-            "speed": 90, "spin": 95, "control": 72, "tackiness": 15, "grip": 92,
-            "sponge_thickness": "max,2.0,1.9", "sponge_hardness": "36deg",
-            "top_sheet": "inverted", "weight": "65-70g", "durability": 75
-        }
+            "speed": 90,
+            "spin": 95,
+            "control": 72,
+            "tackiness": 15,
+            "grip": 92,
+            "sponge_thickness": "max,2.0,1.9",
+            "sponge_hardness": "36deg",
+            "top_sheet": "inverted",
+            "weight": "65-70g",
+            "durability": 75,
+        },
     },
     {
         "name": "Dignics 09C",
@@ -399,10 +616,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 94.99,
         "release_year": 2019,
         "specs": {
-            "speed": 88, "spin": 98, "control": 75, "tackiness": 65, "grip": 95,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "44deg",
-            "top_sheet": "inverted", "weight": "68-73g", "durability": 80
-        }
+            "speed": 88,
+            "spin": 98,
+            "control": 75,
+            "tackiness": 65,
+            "grip": 95,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "44deg",
+            "top_sheet": "inverted",
+            "weight": "68-73g",
+            "durability": 80,
+        },
     },
     {
         "name": "Rozena",
@@ -412,10 +636,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 49.99,
         "release_year": 2017,
         "specs": {
-            "speed": 78, "spin": 82, "control": 80, "tackiness": 10, "grip": 80,
-            "sponge_thickness": "max,2.0,1.9", "sponge_hardness": "35deg",
-            "top_sheet": "inverted", "weight": "64-69g", "durability": 72
-        }
+            "speed": 78,
+            "spin": 82,
+            "control": 80,
+            "tackiness": 10,
+            "grip": 80,
+            "sponge_thickness": "max,2.0,1.9",
+            "sponge_hardness": "35deg",
+            "top_sheet": "inverted",
+            "weight": "64-69g",
+            "durability": 72,
+        },
     },
     {
         "name": "Sriver",
@@ -425,10 +656,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 39.99,
         "release_year": 1967,
         "specs": {
-            "speed": 65, "spin": 68, "control": 88, "tackiness": 5, "grip": 70,
-            "sponge_thickness": "max,2.0,1.5", "sponge_hardness": "38deg",
-            "top_sheet": "inverted", "weight": "62-67g", "durability": 85
-        }
+            "speed": 65,
+            "spin": 68,
+            "control": 88,
+            "tackiness": 5,
+            "grip": 70,
+            "sponge_thickness": "max,2.0,1.5",
+            "sponge_hardness": "38deg",
+            "top_sheet": "inverted",
+            "weight": "62-67g",
+            "durability": 85,
+        },
     },
     # Donic
     {
@@ -439,10 +677,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 54.99,
         "release_year": 2012,
         "specs": {
-            "speed": 88, "spin": 86, "control": 70, "tackiness": 8, "grip": 85,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "medium-hard",
-            "top_sheet": "inverted", "weight": "66-71g", "durability": 70
-        }
+            "speed": 88,
+            "spin": 86,
+            "control": 70,
+            "tackiness": 8,
+            "grip": 85,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "medium-hard",
+            "top_sheet": "inverted",
+            "weight": "66-71g",
+            "durability": 70,
+        },
     },
     {
         "name": "Coppa X1 Turbo Platin",
@@ -452,10 +697,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 59.99,
         "release_year": 2008,
         "specs": {
-            "speed": 92, "spin": 80, "control": 65, "tackiness": 5, "grip": 82,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "hard",
-            "top_sheet": "inverted", "weight": "67-72g", "durability": 68
-        }
+            "speed": 92,
+            "spin": 80,
+            "control": 65,
+            "tackiness": 5,
+            "grip": 82,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "hard",
+            "top_sheet": "inverted",
+            "weight": "67-72g",
+            "durability": 68,
+        },
     },
     {
         "name": "Vario Big Slam",
@@ -465,10 +717,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 34.99,
         "release_year": 2005,
         "specs": {
-            "speed": 62, "spin": 65, "control": 90, "tackiness": 3, "grip": 68,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "soft",
-            "top_sheet": "inverted", "weight": "60-65g", "durability": 72
-        }
+            "speed": 62,
+            "spin": 65,
+            "control": 90,
+            "tackiness": 3,
+            "grip": 68,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "soft",
+            "top_sheet": "inverted",
+            "weight": "60-65g",
+            "durability": 72,
+        },
     },
     # DHS
     {
@@ -479,10 +738,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 29.99,
         "release_year": 2000,
         "specs": {
-            "speed": 72, "spin": 95, "control": 82, "tackiness": 90, "grip": 88,
-            "sponge_thickness": "max,2.2,2.15", "sponge_hardness": "39deg,40deg",
-            "top_sheet": "inverted", "weight": "68-73g", "durability": 70
-        }
+            "speed": 72,
+            "spin": 95,
+            "control": 82,
+            "tackiness": 90,
+            "grip": 88,
+            "sponge_thickness": "max,2.2,2.15",
+            "sponge_hardness": "39deg,40deg",
+            "top_sheet": "inverted",
+            "weight": "68-73g",
+            "durability": 70,
+        },
     },
     {
         "name": "Hurricane 8",
@@ -492,10 +758,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 34.99,
         "release_year": 2015,
         "specs": {
-            "speed": 80, "spin": 92, "control": 78, "tackiness": 85, "grip": 86,
-            "sponge_thickness": "max,2.2", "sponge_hardness": "39deg,40deg,41deg",
-            "top_sheet": "inverted", "weight": "69-74g", "durability": 72
-        }
+            "speed": 80,
+            "spin": 92,
+            "control": 78,
+            "tackiness": 85,
+            "grip": 86,
+            "sponge_thickness": "max,2.2",
+            "sponge_hardness": "39deg,40deg,41deg",
+            "top_sheet": "inverted",
+            "weight": "69-74g",
+            "durability": 72,
+        },
     },
     {
         "name": "Skyline 3",
@@ -505,10 +778,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 27.99,
         "release_year": 2005,
         "specs": {
-            "speed": 70, "spin": 88, "control": 84, "tackiness": 80, "grip": 82,
-            "sponge_thickness": "max,2.2", "sponge_hardness": "37deg,38deg",
-            "top_sheet": "inverted", "weight": "66-71g", "durability": 70
-        }
+            "speed": 70,
+            "spin": 88,
+            "control": 84,
+            "tackiness": 80,
+            "grip": 82,
+            "sponge_thickness": "max,2.2",
+            "sponge_hardness": "37deg,38deg",
+            "top_sheet": "inverted",
+            "weight": "66-71g",
+            "durability": 70,
+        },
     },
     # Nittaku
     {
@@ -519,10 +799,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 54.99,
         "release_year": 2011,
         "specs": {
-            "speed": 86, "spin": 88, "control": 74, "tackiness": 5, "grip": 86,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "medium-hard",
-            "top_sheet": "inverted", "weight": "65-70g", "durability": 78
-        }
+            "speed": 86,
+            "spin": 88,
+            "control": 74,
+            "tackiness": 5,
+            "grip": 86,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "medium-hard",
+            "top_sheet": "inverted",
+            "weight": "65-70g",
+            "durability": 78,
+        },
     },
     {
         "name": "Moristo SP",
@@ -532,10 +819,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 44.99,
         "release_year": 2005,
         "specs": {
-            "speed": 82, "spin": 60, "control": 80, "tackiness": 0, "grip": 55,
-            "sponge_thickness": "max,2.0,1.6", "sponge_hardness": "medium",
-            "top_sheet": "short_pips", "weight": "62-67g", "durability": 80
-        }
+            "speed": 82,
+            "spin": 60,
+            "control": 80,
+            "tackiness": 0,
+            "grip": 55,
+            "sponge_thickness": "max,2.0,1.6",
+            "sponge_hardness": "medium",
+            "top_sheet": "short_pips",
+            "weight": "62-67g",
+            "durability": 80,
+        },
     },
     {
         "name": "Hammond Z2",
@@ -545,10 +839,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 44.99,
         "release_year": 2014,
         "specs": {
-            "speed": 75, "spin": 80, "control": 82, "tackiness": 5, "grip": 78,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "soft",
-            "top_sheet": "inverted", "weight": "63-68g", "durability": 75
-        }
+            "speed": 75,
+            "spin": 80,
+            "control": 82,
+            "tackiness": 5,
+            "grip": 78,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "soft",
+            "top_sheet": "inverted",
+            "weight": "63-68g",
+            "durability": 75,
+        },
     },
     # Xiom
     {
@@ -559,10 +860,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 54.99,
         "release_year": 2018,
         "specs": {
-            "speed": 92, "spin": 94, "control": 68, "tackiness": 10, "grip": 90,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "hard",
-            "top_sheet": "inverted", "weight": "67-72g", "durability": 74
-        }
+            "speed": 92,
+            "spin": 94,
+            "control": 68,
+            "tackiness": 10,
+            "grip": 90,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "hard",
+            "top_sheet": "inverted",
+            "weight": "67-72g",
+            "durability": 74,
+        },
     },
     {
         "name": "Vega Pro",
@@ -572,10 +880,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 39.99,
         "release_year": 2010,
         "specs": {
-            "speed": 82, "spin": 84, "control": 76, "tackiness": 5, "grip": 80,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "medium-hard",
-            "top_sheet": "inverted", "weight": "65-70g", "durability": 72
-        }
+            "speed": 82,
+            "spin": 84,
+            "control": 76,
+            "tackiness": 5,
+            "grip": 80,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "medium-hard",
+            "top_sheet": "inverted",
+            "weight": "65-70g",
+            "durability": 72,
+        },
     },
     {
         "name": "Vega Europe",
@@ -585,10 +900,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 39.99,
         "release_year": 2010,
         "specs": {
-            "speed": 76, "spin": 80, "control": 82, "tackiness": 3, "grip": 76,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "medium",
-            "top_sheet": "inverted", "weight": "64-69g", "durability": 72
-        }
+            "speed": 76,
+            "spin": 80,
+            "control": 82,
+            "tackiness": 3,
+            "grip": 76,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "medium",
+            "top_sheet": "inverted",
+            "weight": "64-69g",
+            "durability": 72,
+        },
     },
     # Tibhar
     {
@@ -599,10 +921,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 54.99,
         "release_year": 2013,
         "specs": {
-            "speed": 94, "spin": 90, "control": 65, "tackiness": 5, "grip": 85,
-            "sponge_thickness": "max,2.1,2.0", "sponge_hardness": "hard",
-            "top_sheet": "inverted", "weight": "68-73g", "durability": 70
-        }
+            "speed": 94,
+            "spin": 90,
+            "control": 65,
+            "tackiness": 5,
+            "grip": 85,
+            "sponge_thickness": "max,2.1,2.0",
+            "sponge_hardness": "hard",
+            "top_sheet": "inverted",
+            "weight": "68-73g",
+            "durability": 70,
+        },
     },
     {
         "name": "Evolution EL-P",
@@ -612,10 +941,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 54.99,
         "release_year": 2013,
         "specs": {
-            "speed": 84, "spin": 86, "control": 78, "tackiness": 3, "grip": 82,
-            "sponge_thickness": "max,2.1,2.0", "sponge_hardness": "medium",
-            "top_sheet": "inverted", "weight": "66-71g", "durability": 72
-        }
+            "speed": 84,
+            "spin": 86,
+            "control": 78,
+            "tackiness": 3,
+            "grip": 82,
+            "sponge_thickness": "max,2.1,2.0",
+            "sponge_hardness": "medium",
+            "top_sheet": "inverted",
+            "weight": "66-71g",
+            "durability": 72,
+        },
     },
     {
         "name": "Nimbus Delta V",
@@ -625,10 +961,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 39.99,
         "release_year": 2016,
         "specs": {
-            "speed": 72, "spin": 76, "control": 86, "tackiness": 2, "grip": 72,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "soft",
-            "top_sheet": "inverted", "weight": "63-68g", "durability": 74
-        }
+            "speed": 72,
+            "spin": 76,
+            "control": 86,
+            "tackiness": 2,
+            "grip": 72,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "soft",
+            "top_sheet": "inverted",
+            "weight": "63-68g",
+            "durability": 74,
+        },
     },
     # Andro
     {
@@ -639,10 +982,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 49.99,
         "release_year": 2017,
         "specs": {
-            "speed": 92, "spin": 90, "control": 66, "tackiness": 5, "grip": 86,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "53deg",
-            "top_sheet": "inverted", "weight": "68-73g", "durability": 72
-        }
+            "speed": 92,
+            "spin": 90,
+            "control": 66,
+            "tackiness": 5,
+            "grip": 86,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "53deg",
+            "top_sheet": "inverted",
+            "weight": "68-73g",
+            "durability": 72,
+        },
     },
     {
         "name": "Rasanter R47",
@@ -652,10 +1002,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 49.99,
         "release_year": 2017,
         "specs": {
-            "speed": 86, "spin": 88, "control": 74, "tackiness": 5, "grip": 84,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "47deg",
-            "top_sheet": "inverted", "weight": "66-71g", "durability": 72
-        }
+            "speed": 86,
+            "spin": 88,
+            "control": 74,
+            "tackiness": 5,
+            "grip": 84,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "47deg",
+            "top_sheet": "inverted",
+            "weight": "66-71g",
+            "durability": 72,
+        },
     },
     {
         "name": "Hexer Grip",
@@ -665,10 +1022,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 39.99,
         "release_year": 2014,
         "specs": {
-            "speed": 76, "spin": 82, "control": 80, "tackiness": 10, "grip": 85,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "medium",
-            "top_sheet": "inverted", "weight": "65-70g", "durability": 74
-        }
+            "speed": 76,
+            "spin": 82,
+            "control": 80,
+            "tackiness": 10,
+            "grip": 85,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "medium",
+            "top_sheet": "inverted",
+            "weight": "65-70g",
+            "durability": 74,
+        },
     },
     # Stiga
     {
@@ -679,10 +1043,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 59.99,
         "release_year": 2020,
         "specs": {
-            "speed": 94, "spin": 92, "control": 66, "tackiness": 5, "grip": 88,
-            "sponge_thickness": "max,2.1,2.0", "sponge_hardness": "extra-hard",
-            "top_sheet": "inverted", "weight": "69-74g", "durability": 76
-        }
+            "speed": 94,
+            "spin": 92,
+            "control": 66,
+            "tackiness": 5,
+            "grip": 88,
+            "sponge_thickness": "max,2.1,2.0",
+            "sponge_hardness": "extra-hard",
+            "top_sheet": "inverted",
+            "weight": "69-74g",
+            "durability": 76,
+        },
     },
     {
         "name": "DNA Pro M",
@@ -692,10 +1063,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 54.99,
         "release_year": 2019,
         "specs": {
-            "speed": 86, "spin": 88, "control": 76, "tackiness": 3, "grip": 84,
-            "sponge_thickness": "max,2.1,2.0", "sponge_hardness": "medium",
-            "top_sheet": "inverted", "weight": "66-71g", "durability": 76
-        }
+            "speed": 86,
+            "spin": 88,
+            "control": 76,
+            "tackiness": 3,
+            "grip": 84,
+            "sponge_thickness": "max,2.1,2.0",
+            "sponge_hardness": "medium",
+            "top_sheet": "inverted",
+            "weight": "66-71g",
+            "durability": 76,
+        },
     },
     {
         "name": "Mantra M",
@@ -705,10 +1083,17 @@ RUBBERS: List[Dict[str, Any]] = [
         "price_usd": 49.99,
         "release_year": 2016,
         "specs": {
-            "speed": 80, "spin": 84, "control": 80, "tackiness": 3, "grip": 80,
-            "sponge_thickness": "max,2.0", "sponge_hardness": "medium",
-            "top_sheet": "inverted", "weight": "65-70g", "durability": 74
-        }
+            "speed": 80,
+            "spin": 84,
+            "control": 80,
+            "tackiness": 3,
+            "grip": 80,
+            "sponge_thickness": "max,2.0",
+            "sponge_hardness": "medium",
+            "top_sheet": "inverted",
+            "weight": "65-70g",
+            "durability": 74,
+        },
     },
 ]
 
@@ -719,35 +1104,35 @@ SEED_POSTS = [
         "content": "Both are iconic Butterfly ALC blades, but they cater to slightly different playing styles. The Viscaria (87 speed / 72 control) offers a crisper, more direct feeling with a slightly harder touch. It's ideal for aggressive loopers who want immediate feedback and power. The Timo Boll ALC (82 speed / 78 control) feels softer and more forgiving, making it better for players who prioritize spin generation and controlled attacks. In my experience, Viscaria pairs beautifully with Tenergy 05 for an explosive forehand, while the TB ALC works great with Dignics 09C for a spin-dominant game. What's your experience with these blades?",
         "image_url": "/static/equipment/blades/butterfly-viscaria.jpg",
         "author": "TTExpert",
-        "stats": {"speed": 8.5, "control": 7.5, "spin": 9.0, "feel": 8.0}
+        "stats": {"speed": 8.5, "control": 7.5, "spin": 9.0, "feel": 8.0},
     },
     {
         "title": "DHS Hurricane 3 Neo - The ultimate Chinese rubber?",
         "content": "Hurricane 3 Neo has been the go-to rubber for Chinese professional players for over two decades. With its highly tacky top sheet (90/100 tackiness) and hard sponge, it generates incredible spin on loops and serves. The factory-tuned Neo version comes with a speed glue effect built in, making it more playable out of the package than the original. At $29.99, it's also one of the best value-for-money rubbers on the market. Pro tip: pair it with a hard carbon blade like DHS Hurricane Long 5 for maximum effect. The main downside is that it requires good technique - beginners might find it too unforgiving.",
         "image_url": "/static/equipment/rubbers/dhs-hurricane-3-neo.jpg",
         "author": "SpinMaster",
-        "stats": {"speed": 7.2, "spin": 9.5, "control": 8.2, "value": 9.5}
+        "stats": {"speed": 7.2, "spin": 9.5, "control": 8.2, "value": 9.5},
     },
     {
         "title": "Beginner Setup Guide: Best Blade + Rubber Combos Under $100",
         "content": "Starting out in table tennis can be overwhelming with so many equipment choices. Here are my top 3 budget-friendly setups that won't hold back your development:\n\n1. **Andro Wood ALL+/OFF- ($49.99) + Donic Vario Big Slam ($34.99)** = Total: ~$85\n   Great control and feeling. Perfect for learning proper technique.\n\n2. **Stiga Allround Evolution ($74.99) + Butterfly Sriver ($39.99)** = Total: ~$115\n   Classic combo with excellent durability and allround performance.\n\n3. **Donic Appelgren Allplay ($74.99) + Xiom Vega Europe ($39.99)** = Total: ~$115\n   Soft feeling with modern tensor rubber. Good for developing spin.\n\nAvoid pre-made rackets from general sports stores - they're usually slow and don't allow you to upgrade components individually. Invest in a custom setup and you'll thank yourself later!",
         "image_url": "/static/equipment/blades/andro-wood-all-off.jpg",
         "author": "CoachMike",
-        "stats": {"speed": 6.5, "control": 9.0, "spin": 7.0, "value": 9.0}
+        "stats": {"speed": 6.5, "control": 9.0, "spin": 7.0, "value": 9.0},
     },
     {
         "title": "Stiga Carbonado 245 Review - Too Fast for Mortals?",
         "content": "The Carbonado 245 is one of the fastest blades ever created (95/100 speed). With Textreme carbon layers, it offers incredible power but demands perfect technique. At $199.99, it's a serious investment. I've been testing it for a month with DNA Platinum XH on forehand and DNA Pro M on backhand. The results:\n\nPros:\n- Devastating power on loops and smashes\n- Large sweet spot\n- Great for counter-looping\n\nCons:\n- Unforgiving on off-center hits\n- Blocking requires precise timing\n- Not suitable for beginners or intermediate players\n\nRating: 9/10 for advanced attackers, 4/10 for everyone else.",
         "image_url": "/static/equipment/blades/stiga-carbonado-245.jpg",
         "author": "PowerPlayer",
-        "stats": {"speed": 9.5, "control": 6.2, "spin": 8.5, "feel": 7.0}
+        "stats": {"speed": 9.5, "control": 6.2, "spin": 8.5, "feel": 7.0},
     },
     {
         "title": "Tibhar Balsa SGS - The Chopping Weapon",
         "content": "For defensive players, the Tibhar Balsa SGS is a fantastic choice. At only 70-78g, it's incredibly light and maneuverable. The balsa construction provides excellent control for chopping (92/100) while still offering enough speed for counter-attacks. I've paired mine with TSP Curl P-1R long pips on backhand and Victas VS > 401 on forehand. The combination allows for heavy backspin chops and controlled attacks when the opportunity arises. If you're tired of losing to attackers and want to try a defensive style, this blade is an excellent starting point.",
         "image_url": "/static/equipment/blades/tibhar-balsa-sgs.jpg",
         "author": "ChopChamp",
-        "stats": {"speed": 5.5, "control": 9.2, "spin": 7.0, "defense": 9.5}
+        "stats": {"speed": 5.5, "control": 9.2, "spin": 7.0, "defense": 9.5},
     },
 ]
 

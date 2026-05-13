@@ -1,16 +1,22 @@
 import json
-from sqlalchemy.orm import Session, selectinload
-from sqlalchemy import or_, func
-from sqlalchemy.exc import IntegrityError
-from typing import List, Optional
-from datetime import datetime, timezone
-import shortuuid
 
-from .models import Posts, PostLike
-from .schemas import PostResponse, PostLikeResponse
-from .exceptions import PostNotFound, PostNotAuthorized, PostInvalidStats, PostEquipmentNotFound, PostCreationFailed, PostDeleteFailed
+from sqlalchemy import func, or_
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session, selectinload
+
 from app.routers.equipment.models import Equipment
 from app.services.like_service import toggle_like
+
+from .exceptions import (
+    PostCreationFailed,
+    PostDeleteFailed,
+    PostEquipmentNotFound,
+    PostInvalidStats,
+    PostNotAuthorized,
+    PostNotFound,
+)
+from .models import PostLike, Posts
+from .schemas import PostLikeResponse, PostResponse
 
 
 def _build_post_response(post: Posts, db: Session, liked: bool) -> PostResponse:
@@ -23,10 +29,14 @@ def _build_post_response(post: Posts, db: Session, liked: bool) -> PostResponse:
             "category": str(post.equipment.category),
         }
     likes_count = db.query(PostLike).filter_by(post_id=post.id).count()
-    return PostResponse.from_orm(post, liked_by_current_user=liked, equipment=equipment, likes_count=likes_count)
+    return PostResponse.from_orm(
+        post, liked_by_current_user=liked, equipment=equipment, likes_count=likes_count
+    )
 
 
-def get_posts(db: Session, search: Optional[str], equipment_id: Optional[str], current_user) -> List[PostResponse]:
+def get_posts(
+    db: Session, search: str | None, equipment_id: str | None, current_user
+) -> list[PostResponse]:
     query = db.query(Posts).options(selectinload(Posts.equipment))
     if search:
         search_term = f"%{search}%"
@@ -48,9 +58,10 @@ def get_posts(db: Session, search: Optional[str], equipment_id: Optional[str], c
 
     like_counts = {
         row.post_id: row.count
-        for row in db.query(
-            PostLike.post_id, func.count(PostLike.id).label("count")
-        ).filter(PostLike.post_id.in_(post_ids)).group_by(PostLike.post_id).all()
+        for row in db.query(PostLike.post_id, func.count(PostLike.id).label("count"))
+        .filter(PostLike.post_id.in_(post_ids))
+        .group_by(PostLike.post_id)
+        .all()
     }
 
     liked_post_ids = set()
@@ -73,25 +84,27 @@ def get_posts(db: Session, search: Optional[str], equipment_id: Optional[str], c
                 "brand": str(post.equipment.brand),
                 "category": str(post.equipment.category),
             }
-        result.append(PostResponse.from_orm(
-            post,
-            liked_by_current_user=liked,
-            equipment=equipment,
-            likes_count=like_counts.get(post.id, 0),
-        ))
+        result.append(
+            PostResponse.from_orm(
+                post,
+                liked_by_current_user=liked,
+                equipment=equipment,
+                likes_count=like_counts.get(post.id, 0),
+            )
+        )
     return result
 
 
 def get_post_by_id(db: Session, post_id: str, current_user) -> PostResponse:
-    post = db.query(Posts).options(selectinload(Posts.equipment)).filter(Posts.id == post_id).first()
+    post = (
+        db.query(Posts).options(selectinload(Posts.equipment)).filter(Posts.id == post_id).first()
+    )
     if not post:
         raise PostNotFound()
     liked = False
     if current_user:
         liked = (
-            db.query(PostLike)
-            .filter_by(post_id=post.id, user_id=current_user.id)
-            .first()
+            db.query(PostLike).filter_by(post_id=post.id, user_id=current_user.id).first()
             is not None
         )
     return _build_post_response(post, db, liked)
@@ -102,8 +115,8 @@ def create_post(
     title: str,
     content: str,
     image_url: str,
-    stats_str: Optional[str],
-    equipment_id: Optional[str],
+    stats_str: str | None,
+    equipment_id: str | None,
     current_user,
 ) -> PostResponse:
     stats_dict = None
@@ -149,6 +162,7 @@ def delete_all_posts(db: Session, current_admin) -> None:
         for post in posts:
             if not _is_default_image(getattr(post, "image_url", "")):
                 from app.config.cloudinary_config import delete_image_from_cloudinary
+
                 delete_image_from_cloudinary(post.image_url)
         db.query(Posts).delete()
         db.commit()
@@ -188,11 +202,9 @@ def toggle_like_post(db: Session, post_id: str, current_user) -> PostResponse:
     return _build_post_response(post, db, liked)
 
 
-def get_post_likes(db: Session, post_id: str) -> List[PostLikeResponse]:
+def get_post_likes(db: Session, post_id: str) -> list[PostLikeResponse]:
     post = db.query(Posts).filter(Posts.id == post_id).first()
     if not post:
         raise PostNotFound()
     likes = db.query(PostLike).filter_by(post_id=post_id).all()
-    return [
-        {"user_id": like.user_id, "created_at": like.created_at} for like in likes
-    ]
+    return [{"user_id": like.user_id, "created_at": like.created_at} for like in likes]

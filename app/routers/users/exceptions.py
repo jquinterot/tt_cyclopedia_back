@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+
 class UserNotFound(HTTPException):
     def __init__(self):
         super().__init__(
@@ -7,6 +8,7 @@ class UserNotFound(HTTPException):
             detail="User not found",
             headers={"X-Error-Code": "USER_001"},
         )
+
 
 class UsernameExists(HTTPException):
     def __init__(self):
@@ -16,6 +18,7 @@ class UsernameExists(HTTPException):
             headers={"X-Error-Code": "USER_002"},
         )
 
+
 class EmailExists(HTTPException):
     def __init__(self):
         super().__init__(
@@ -23,6 +26,7 @@ class EmailExists(HTTPException):
             detail="Email already exists",
             headers={"X-Error-Code": "USER_003"},
         )
+
 
 class UserNotAuthorized(HTTPException):
     def __init__(self):

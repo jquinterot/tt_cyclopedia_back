@@ -1,5 +1,6 @@
 from fastapi import status
 
+
 class TestMain:
     def test_read_main(self, client):
         response = client.get("/")

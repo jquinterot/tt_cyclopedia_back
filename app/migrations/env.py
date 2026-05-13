@@ -1,9 +1,11 @@
 import os
+
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Override the database URL with environment variable
-sql_db_url = os.getenv('SQL_DB')
+sql_db_url = os.getenv("SQL_DB")
 if sql_db_url:
     pass  # URL is set correctly
 else:
@@ -11,19 +13,12 @@ else:
 
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
 from app.config.postgres_config import Base
 
 # Import all models for Alembic to detect them
-from app.routers.users.models import Users
-from app.routers.posts.models import Posts
-from app.routers.comments.models import Comments, CommentLike
-from app.routers.forums.models import Forums, ForumLike, ForumComment, ForumCommentLike
-from app.routers.equipment.models import Equipment, BladeSpecs, RubberSpecs, EquipmentReview
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -87,9 +82,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

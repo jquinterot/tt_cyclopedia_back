@@ -1,5 +1,5 @@
-import pytest
 from fastapi import status
+
 
 class TestEquipment:
     def test_get_equipment_endpoint(self, client):
@@ -39,43 +39,34 @@ class TestEquipment:
         assert isinstance(data, list)
 
     def test_create_equipment_review_unauthorized(self, client):
-        review_data = {
-            "rating": 5,
-            "review_text": "Great blade!"
-        }
+        review_data = {"rating": 5, "review_text": "Great blade!"}
         response = client.post("/equipment/fake-equipment-id/reviews", json=review_data)
         assert response.status_code == status.HTTP_403_FORBIDDEN
 
     def test_create_equipment_review_equipment_not_found(self, client, auth_headers):
-        review_data = {
-            "rating": 5,
-            "review_text": "Great blade!"
-        }
-        response = client.post("/equipment/fake-equipment-id/reviews", json=review_data, headers=auth_headers)
+        review_data = {"rating": 5, "review_text": "Great blade!"}
+        response = client.post(
+            "/equipment/fake-equipment-id/reviews", json=review_data, headers=auth_headers
+        )
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_recommend_setup_endpoint(self, client):
-        request_data = {
-            "playing_style": "beginner",
-            "budget_usd": 200,
-            "preferred_brands": []
-        }
+        request_data = {"playing_style": "beginner", "budget_usd": 200, "preferred_brands": []}
         response = client.post("/equipment/recommend-setup", json=request_data)
         # May return 404 if no equipment seeded in test DB, or 200 if seeded
         assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
 
     def test_recommend_setup_invalid_style(self, client):
-        request_data = {
-            "playing_style": "invalid_style",
-            "budget_usd": 200
-        }
+        request_data = {"playing_style": "invalid_style", "budget_usd": 200}
         response = client.post("/equipment/recommend-setup", json=request_data)
-        assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND, status.HTTP_422_UNPROCESSABLE_ENTITY]
+        assert response.status_code in [
+            status.HTTP_200_OK,
+            status.HTTP_404_NOT_FOUND,
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+        ]
 
     def test_recommend_setup_no_budget(self, client):
-        request_data = {
-            "playing_style": "beginner"
-        }
+        request_data = {"playing_style": "beginner"}
         response = client.post("/equipment/recommend-setup", json=request_data)
         assert response.status_code in [status.HTTP_200_OK, status.HTTP_404_NOT_FOUND]
 

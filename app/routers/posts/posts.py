@@ -1,23 +1,29 @@
-from fastapi import APIRouter, status, HTTPException, Depends, UploadFile, File, Form, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
-from typing import List, Optional
-from app.auth.dependencies import get_current_user, get_current_user_optional, get_current_admin
-from app.routers.users.models import Users
+
+from app.auth.dependencies import get_current_admin, get_current_user, get_current_user_optional
+from app.config.cloudinary_config import (
+    ALLOWED_TYPES,
+    DEFAULT_IMAGE_URL,
+    MAX_FILE_SIZE,
+    upload_image,
+)
 from app.config.postgres_config import get_db
-from app.config.cloudinary_config import upload_image, ALLOWED_TYPES, MAX_FILE_SIZE, DEFAULT_IMAGE_URL
 from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
-from .schemas import PostResponse, PostLikeResponse
+from app.routers.users.models import Users
+
 from . import service
+from .schemas import PostLikeResponse, PostResponse
 
 router = APIRouter(prefix="/posts")
 
 
-@router.get("", response_model=List[PostResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[PostResponse], status_code=status.HTTP_200_OK)
 def get_posts(
-    search: Optional[str] = Query(
+    search: str | None = Query(
         None, description="Search posts by title or content", min_length=1, max_length=100
     ),
-    equipment_id: Optional[str] = Query(None, description="Filter by equipment ID"),
+    equipment_id: str | None = Query(None, description="Filter by equipment ID"),
     db: Session = Depends(get_db),
     current_user: Users = Depends(get_current_user_optional),
     _: bool = Depends(read_rate_limit),
@@ -109,9 +115,7 @@ def toggle_like_post(
     return service.toggle_like_post(db, post_id, current_user)
 
 
-@router.get(
-    "/{post_id}/likes", response_model=List[PostLikeResponse], status_code=200
-)
+@router.get("/{post_id}/likes", response_model=list[PostLikeResponse], status_code=200)
 def get_post_likes(
     post_id: str,
     db: Session = Depends(get_db),

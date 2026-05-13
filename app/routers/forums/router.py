@@ -1,17 +1,18 @@
-from fastapi import APIRouter, status, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
-from typing import List
+
 from app.auth.dependencies import get_current_user, get_current_user_optional
-from app.routers.users.models import Users
 from app.config.postgres_config import get_db
 from app.middleware.rate_limiter import read_rate_limit, write_rate_limit
-from .schemas import ForumCreate, ForumResponse, ForumUpdate
+from app.routers.users.models import Users
+
 from . import service
+from .schemas import ForumCreate, ForumResponse, ForumUpdate
 
 router = APIRouter(prefix="/forums")
 
 
-@router.get("", response_model=List[ForumResponse], status_code=status.HTTP_200_OK)
+@router.get("", response_model=list[ForumResponse], status_code=status.HTTP_200_OK)
 def get_all_forums(
     db: Session = Depends(get_db),
     current_user: Users = Depends(get_current_user_optional),

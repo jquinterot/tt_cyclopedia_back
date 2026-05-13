@@ -1,22 +1,28 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import func, or_
-from typing import List, Optional
 import shortuuid
+from sqlalchemy import func, or_
+from sqlalchemy.orm import Session
 
-from .models import Equipment, BladeSpecs, RubberSpecs, EquipmentReview
-from .schemas import (
-    EquipmentResponse, EquipmentDetailResponse,
-    BladeSpecsResponse, RubberSpecsResponse,
-    EquipmentReviewResponse, SetupRecommendation
-)
 from .exceptions import (
-    EquipmentNotFound, EquipmentNoData,
-    EquipmentNoBlades, EquipmentNoRubbers,
     EquipmentAlreadyReviewed,
+    EquipmentNoBlades,
+    EquipmentNoData,
+    EquipmentNoRubbers,
+    EquipmentNotFound,
+)
+from .models import BladeSpecs, Equipment, EquipmentReview, RubberSpecs
+from .schemas import (
+    BladeSpecsResponse,
+    EquipmentDetailResponse,
+    EquipmentResponse,
+    EquipmentReviewResponse,
+    RubberSpecsResponse,
+    SetupRecommendation,
 )
 
 
-def _to_equipment_response(item: Equipment, avg_rating: Optional[float], review_count: int) -> EquipmentResponse:
+def _to_equipment_response(
+    item: Equipment, avg_rating: float | None, review_count: int
+) -> EquipmentResponse:
     return EquipmentResponse(
         id=str(item.id),
         name=str(item.name),
@@ -37,7 +43,11 @@ def _to_equipment_response(item: Equipment, avg_rating: Optional[float], review_
 def _to_detail_response(equipment: Equipment, db: Session) -> EquipmentDetailResponse:
     blade_s = db.query(BladeSpecs).filter(BladeSpecs.equipment_id == equipment.id).first()
     rubber_s = db.query(RubberSpecs).filter(RubberSpecs.equipment_id == equipment.id).first()
-    avg = db.query(func.avg(EquipmentReview.rating)).filter(EquipmentReview.equipment_id == equipment.id).scalar()
+    avg = (
+        db.query(func.avg(EquipmentReview.rating))
+        .filter(EquipmentReview.equipment_id == equipment.id)
+        .scalar()
+    )
     count = db.query(EquipmentReview).filter(EquipmentReview.equipment_id == equipment.id).count()
     return EquipmentDetailResponse(
         id=str(equipment.id),
@@ -53,30 +63,53 @@ def _to_detail_response(equipment: Equipment, db: Session) -> EquipmentDetailRes
         timestamp=equipment.timestamp,
         avg_rating=round(float(avg), 1) if avg else None,
         review_count=count,
-        blade_specs=BladeSpecsResponse(
-            id=str(blade_s.id), equipment_id=str(blade_s.equipment_id),
-            speed=blade_s.speed, control=blade_s.control, stiffness=blade_s.stiffness,
-            hardness=blade_s.hardness, weight_min=blade_s.weight_min, weight_max=blade_s.weight_max,
-            plies=blade_s.plies, material=blade_s.material, thickness=blade_s.thickness,
-            head_size=blade_s.head_size, handle_types=blade_s.handle_types,
-        ) if blade_s else None,
-        rubber_specs=RubberSpecsResponse(
-            id=str(rubber_s.id), equipment_id=str(rubber_s.equipment_id),
-            speed=rubber_s.speed, spin=rubber_s.spin, control=rubber_s.control,
-            tackiness=rubber_s.tackiness, grip=rubber_s.grip,
-            sponge_thickness=rubber_s.sponge_thickness, sponge_hardness=rubber_s.sponge_hardness,
-            top_sheet=rubber_s.top_sheet, weight=rubber_s.weight, durability=rubber_s.durability,
-        ) if rubber_s else None,
+        blade_specs=(
+            BladeSpecsResponse(
+                id=str(blade_s.id),
+                equipment_id=str(blade_s.equipment_id),
+                speed=blade_s.speed,
+                control=blade_s.control,
+                stiffness=blade_s.stiffness,
+                hardness=blade_s.hardness,
+                weight_min=blade_s.weight_min,
+                weight_max=blade_s.weight_max,
+                plies=blade_s.plies,
+                material=blade_s.material,
+                thickness=blade_s.thickness,
+                head_size=blade_s.head_size,
+                handle_types=blade_s.handle_types,
+            )
+            if blade_s
+            else None
+        ),
+        rubber_specs=(
+            RubberSpecsResponse(
+                id=str(rubber_s.id),
+                equipment_id=str(rubber_s.equipment_id),
+                speed=rubber_s.speed,
+                spin=rubber_s.spin,
+                control=rubber_s.control,
+                tackiness=rubber_s.tackiness,
+                grip=rubber_s.grip,
+                sponge_thickness=rubber_s.sponge_thickness,
+                sponge_hardness=rubber_s.sponge_hardness,
+                top_sheet=rubber_s.top_sheet,
+                weight=rubber_s.weight,
+                durability=rubber_s.durability,
+            )
+            if rubber_s
+            else None
+        ),
     )
 
 
 def get_equipment_list(
     db: Session,
-    category: Optional[str],
-    brand: Optional[str],
-    subcategory: Optional[str],
-    search: Optional[str],
-) -> List[EquipmentResponse]:
+    category: str | None,
+    brand: str | None,
+    subcategory: str | None,
+    search: str | None,
+) -> list[EquipmentResponse]:
     query = db.query(Equipment)
     if category:
         query = query.filter(Equipment.category == category)
@@ -102,16 +135,20 @@ def get_equipment_list(
     avg_ratings = {
         row.equipment_id: row.avg_rating
         for row in db.query(
-            EquipmentReview.equipment_id,
-            func.avg(EquipmentReview.rating).label("avg_rating")
-        ).filter(EquipmentReview.equipment_id.in_(item_ids)).group_by(EquipmentReview.equipment_id).all()
+            EquipmentReview.equipment_id, func.avg(EquipmentReview.rating).label("avg_rating")
+        )
+        .filter(EquipmentReview.equipment_id.in_(item_ids))
+        .group_by(EquipmentReview.equipment_id)
+        .all()
     }
     review_counts = {
         row.equipment_id: row.count
         for row in db.query(
-            EquipmentReview.equipment_id,
-            func.count(EquipmentReview.id).label("count")
-        ).filter(EquipmentReview.equipment_id.in_(item_ids)).group_by(EquipmentReview.equipment_id).all()
+            EquipmentReview.equipment_id, func.count(EquipmentReview.id).label("count")
+        )
+        .filter(EquipmentReview.equipment_id.in_(item_ids))
+        .group_by(EquipmentReview.equipment_id)
+        .all()
     }
 
     result = []
@@ -129,21 +166,28 @@ def get_equipment_by_id(db: Session, equipment_id: str) -> EquipmentDetailRespon
     return _to_detail_response(item, db)
 
 
-def get_equipment_reviews(db: Session, equipment_id: str) -> List[EquipmentReviewResponse]:
-    reviews = db.query(EquipmentReview).filter(
-        EquipmentReview.equipment_id == equipment_id
-    ).order_by(EquipmentReview.timestamp.desc()).all()
+def get_equipment_reviews(db: Session, equipment_id: str) -> list[EquipmentReviewResponse]:
+    reviews = (
+        db.query(EquipmentReview)
+        .filter(EquipmentReview.equipment_id == equipment_id)
+        .order_by(EquipmentReview.timestamp.desc())
+        .all()
+    )
     return reviews
 
 
-def create_equipment_review(db: Session, equipment_id: str, review_data, current_user) -> EquipmentReviewResponse:
+def create_equipment_review(
+    db: Session, equipment_id: str, review_data, current_user
+) -> EquipmentReviewResponse:
     equipment = db.query(Equipment).filter(Equipment.id == equipment_id).first()
     if not equipment:
         raise EquipmentNotFound()
 
-    existing = db.query(EquipmentReview).filter_by(
-        equipment_id=equipment_id, user_id=current_user.id
-    ).first()
+    existing = (
+        db.query(EquipmentReview)
+        .filter_by(equipment_id=equipment_id, user_id=current_user.id)
+        .first()
+    )
     if existing:
         raise EquipmentAlreadyReviewed()
 
@@ -181,17 +225,31 @@ def recommend_setup(db: Session, request) -> SetupRecommendation:
             continue
         score = 0
         if request.playing_style == "beginner":
-            score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 2 + (specs.hardness or 0) * 0.5
+            score = (
+                (specs.control or 0) * 3
+                + (100 - (specs.speed or 0)) * 2
+                + (specs.hardness or 0) * 0.5
+            )
         elif request.playing_style == "intermediate":
             score = (specs.control or 0) * 2 + (specs.speed or 0) * 1.5 + (specs.stiffness or 0)
         elif request.playing_style == "advanced":
             score = (specs.speed or 0) * 2 + (specs.stiffness or 0) * 1.5 + (specs.control or 0)
         elif request.playing_style == "attacker":
-            score = (specs.speed or 0) * 2.5 + (specs.stiffness or 0) * 1.5 + (100 - (specs.control or 0)) * 0.5
+            score = (
+                (specs.speed or 0) * 2.5
+                + (specs.stiffness or 0) * 1.5
+                + (100 - (specs.control or 0)) * 0.5
+            )
         elif request.playing_style == "defender":
-            score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 2 + (100 - (specs.stiffness or 0))
+            score = (
+                (specs.control or 0) * 3
+                + (100 - (specs.speed or 0)) * 2
+                + (100 - (specs.stiffness or 0))
+            )
         else:
-            score = (specs.control or 0) * 2 + (specs.speed or 0) + abs(50 - (specs.speed or 0)) * -1
+            score = (
+                (specs.control or 0) * 2 + (specs.speed or 0) + abs(50 - (specs.speed or 0)) * -1
+            )
 
         if request.budget_usd and blade.price_usd and blade.price_usd > request.budget_usd * 0.6:
             continue
@@ -206,7 +264,11 @@ def recommend_setup(db: Session, request) -> SetupRecommendation:
             continue
         score = 0
         if request.playing_style == "beginner":
-            score = (specs.control or 0) * 3 + (100 - (specs.speed or 0)) * 1.5 + (100 - (specs.spin or 0)) * 0.5
+            score = (
+                (specs.control or 0) * 3
+                + (100 - (specs.speed or 0)) * 1.5
+                + (100 - (specs.spin or 0)) * 0.5
+            )
         elif request.playing_style == "intermediate":
             score = (specs.control or 0) * 1.5 + (specs.spin or 0) * 1.5 + (specs.speed or 0)
         elif request.playing_style == "advanced":

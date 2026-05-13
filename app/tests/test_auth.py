@@ -1,5 +1,5 @@
-import pytest
 from fastapi import status
+
 
 class TestAuth:
     def test_validate_token(self, client, auth_headers):

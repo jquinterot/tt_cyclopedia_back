@@ -1,21 +1,22 @@
-from fastapi import APIRouter, Query, Depends, HTTPException, status
 from datetime import datetime
-from typing import List, Optional
 
-from app.routers.users.models import Users
+from fastapi import APIRouter, Depends, Query
+
 from app.auth.dependencies import get_current_admin
 from app.config.mongo_config import db
-from app.routers.logs.schemas import LogEntry
 from app.middleware.rate_limiter import read_rate_limit
+from app.routers.logs.schemas import LogEntry
+from app.routers.users.models import Users
 
 router = APIRouter(prefix="/logs", tags=["logs"])
 
-@router.get("/", response_model=List[LogEntry])
+
+@router.get("/", response_model=list[LogEntry])
 def get_logs(
     limit: int = Query(10, ge=1, le=100),
-    method: Optional[str] = None,
-    path: Optional[str] = None,
-    since: Optional[datetime] = None,
+    method: str | None = None,
+    path: str | None = None,
+    since: datetime | None = None,
     current_admin: Users = Depends(get_current_admin),
     _: bool = Depends(read_rate_limit),
 ):

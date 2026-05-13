@@ -1,6 +1,7 @@
-from pymongo import MongoClient
-from dotenv import load_dotenv
 import os
+
+from dotenv import load_dotenv
+from pymongo import MongoClient
 
 load_dotenv()
 
@@ -17,15 +18,18 @@ client = MongoClient(MONGO_URL)
 # Get database instance
 db = client[MONGO_DB_NAME]
 
+
 def get_mongo_client():
     """Get MongoDB client instance"""
     return client
+
 
 def get_mongo_db():
     """Get MongoDB database instance"""
     return db
 
+
 def is_mongo_atlas():
     """Check if we're using MongoDB Atlas (cloud) vs local MongoDB"""
     mongo_url = os.getenv("MONGO_DB", "")
-    return "mongodb+srv://" in mongo_url or "atlas" in mongo_url.lower() 
+    return "mongodb+srv://" in mongo_url or "atlas" in mongo_url.lower()

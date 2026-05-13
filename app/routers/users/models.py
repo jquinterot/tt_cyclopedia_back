@@ -1,12 +1,15 @@
 from datetime import datetime
-from app.config.postgres_config import Base, get_schema_kwargs
-from sqlalchemy import String, Column, DateTime, Boolean
+
+from sqlalchemy import Boolean, Column, DateTime, String
 from sqlalchemy.orm import relationship
+
+from app.config.postgres_config import Base, get_schema_kwargs
 
 schema_kwargs = get_schema_kwargs()
 
+
 class Users(Base):
-    __tablename__ = 'users'
+    __tablename__ = "users"
     id = Column(String(255), nullable=False, primary_key=True, unique=True)
     username = Column(String(255), nullable=False, unique=True)
     password = Column(String(255), nullable=False)
@@ -16,4 +19,3 @@ class Users(Base):
     comments = relationship("Comments", back_populates="users")
     if schema_kwargs:
         __table_args__ = schema_kwargs
-

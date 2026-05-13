@@ -1,18 +1,27 @@
 from datetime import datetime
+
 import shortuuid
-from sqlalchemy import String, Column, ForeignKey, Integer, DateTime
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import relationship
-from app.config.postgres_config import Base, get_schema_kwargs, get_fk_reference
+
+from app.config.postgres_config import Base, get_fk_reference, get_schema_kwargs
 
 schema_kwargs = get_schema_kwargs()
 
+
 class Comments(Base):
-    __tablename__ = 'comments'
+    __tablename__ = "comments"
     id = Column(String(255), nullable=False, primary_key=True)
     comment = Column(String(255), nullable=False, unique=False)
-    post_id = Column(String(255), ForeignKey(get_fk_reference('posts'), ondelete='CASCADE'), nullable=True)
-    forum_id = Column(String(255), ForeignKey(get_fk_reference('forums'), ondelete='CASCADE'), nullable=True)
-    user_id = Column(String(255), ForeignKey(get_fk_reference('users'), ondelete='CASCADE'), nullable=False)
+    post_id = Column(
+        String(255), ForeignKey(get_fk_reference("posts"), ondelete="CASCADE"), nullable=True
+    )
+    forum_id = Column(
+        String(255), ForeignKey(get_fk_reference("forums"), ondelete="CASCADE"), nullable=True
+    )
+    user_id = Column(
+        String(255), ForeignKey(get_fk_reference("users"), ondelete="CASCADE"), nullable=False
+    )
     parent_id = Column(String(255), nullable=True)
     likes = Column(Integer, default=0)
     username = Column(String(255), nullable=True)
@@ -25,10 +34,13 @@ class Comments(Base):
 
 
 class CommentLike(Base):
-    __tablename__ = 'comment_likes'
+    __tablename__ = "comment_likes"
     id = Column(String(255), nullable=False, primary_key=True, default=lambda: shortuuid.uuid())
-    comment_id = Column(String(255), ForeignKey(get_fk_reference('comments'), ondelete='CASCADE'), nullable=False)
-    user_id = Column(String(255), ForeignKey(get_fk_reference('users'), ondelete='CASCADE'), nullable=False)
+    comment_id = Column(
+        String(255), ForeignKey(get_fk_reference("comments"), ondelete="CASCADE"), nullable=False
+    )
+    user_id = Column(
+        String(255), ForeignKey(get_fk_reference("users"), ondelete="CASCADE"), nullable=False
+    )
     if schema_kwargs:
         __table_args__ = schema_kwargs  # type: ignore
-

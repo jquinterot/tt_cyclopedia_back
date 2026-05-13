@@ -1,5 +1,6 @@
 from fastapi import HTTPException, status
 
+
 class PostNotFound(HTTPException):
     def __init__(self):
         super().__init__(
@@ -7,6 +8,7 @@ class PostNotFound(HTTPException):
             detail="Post not found",
             headers={"X-Error-Code": "POST_001"},
         )
+
 
 class PostNotAuthorized(HTTPException):
     def __init__(self):
@@ -16,6 +18,7 @@ class PostNotAuthorized(HTTPException):
             headers={"X-Error-Code": "POST_002"},
         )
 
+
 class PostInvalidStats(HTTPException):
     def __init__(self):
         super().__init__(
@@ -23,6 +26,7 @@ class PostInvalidStats(HTTPException):
             detail="Invalid stats JSON format",
             headers={"X-Error-Code": "POST_003"},
         )
+
 
 class PostEquipmentNotFound(HTTPException):
     def __init__(self):
@@ -32,6 +36,7 @@ class PostEquipmentNotFound(HTTPException):
             headers={"X-Error-Code": "POST_004"},
         )
 
+
 class PostUnsupportedFileType(HTTPException):
     def __init__(self):
         super().__init__(
@@ -39,6 +44,7 @@ class PostUnsupportedFileType(HTTPException):
             detail="Unsupported file type. Only JPEG, PNG, and WEBP are allowed.",
             headers={"X-Error-Code": "POST_005"},
         )
+
 
 class PostFileTooLarge(HTTPException):
     def __init__(self):
@@ -48,6 +54,7 @@ class PostFileTooLarge(HTTPException):
             headers={"X-Error-Code": "POST_006"},
         )
 
+
 class PostImageUploadFailed(HTTPException):
     def __init__(self):
         super().__init__(
@@ -56,6 +63,7 @@ class PostImageUploadFailed(HTTPException):
             headers={"X-Error-Code": "POST_007"},
         )
 
+
 class PostCreationFailed(HTTPException):
     def __init__(self):
         super().__init__(
@@ -63,6 +71,7 @@ class PostCreationFailed(HTTPException):
             detail="Post with this title already exists",
             headers={"X-Error-Code": "POST_008"},
         )
+
 
 class PostDeleteFailed(HTTPException):
     def __init__(self):

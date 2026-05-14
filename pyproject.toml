@@ -72,6 +72,21 @@ select = [
     "SIM", # flake8-simplify
 ]
 ignore = ["E501", "B008", "B904", "W293", "E402", "W291", "UP047"]
+exclude = [
+    "check_*.py",
+    "create_*.py",
+    "delete_*.py",
+    "init_*.py",
+    "migrate_*.py",
+    "run_*.py",
+    "seed_*.py",
+    "test_*.py",
+    "*.pyc",
+    "__pycache__",
+    ".venv",
+    ".pytest_cache",
+    "app/migrations",
+]
 
 [tool.ruff.pydocstyle]
 convention = "google"

@@ -55,6 +55,14 @@ extend-exclude = '''
   | build
   | dist
   | app/migrations/versions
+  | check_.*\.py
+  | create_.*\.py
+  | delete_.*\.py
+  | init_.*\.py
+  | migrate_.*\.py
+  | run_.*\.py
+  | seed_.*\.py
+  | test_.*\.py
 )/
 '''
 

@@ -3,6 +3,7 @@ Seeder script for TT Cyclopedia.
 Run with: python3 seed_database.py
 Or import and call seed_all()
 """
+
 import os
 import sys
 
@@ -10,6 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.config.postgres_config import Base, engine, SessionLocal
+
 # Import ALL models to ensure SQLAlchemy relationship mapping works
 from app.routers.users.models import Users
 from app.routers.posts.models import Posts, PostLike
@@ -18,6 +20,7 @@ from app.routers.comments.models import Comments, CommentLike
 from app.routers.equipment.models import Equipment, BladeSpecs, RubberSpecs, EquipmentReview
 from app.seeds.equipment_seed import BLADES, RUBBERS, SEED_POSTS, SEED_FORUMS
 from datetime import datetime, timezone
+
 
 def seed_equipment():
     """Seed equipment catalog with blades and rubbers"""
@@ -28,7 +31,7 @@ def seed_equipment():
         if existing > 0:
             print(f"Found {existing} equipment items already seeded. Skipping equipment seed.")
             return
-        
+
         print("Seeding blades...")
         for blade_data in BLADES:
             equipment = Equipment(
@@ -44,7 +47,7 @@ def seed_equipment():
             )
             db.add(equipment)
             db.flush()  # Get the ID
-            
+
             specs = blade_data.get("specs", {})
             blade_spec = BladeSpecs(
                 id=shortuuid.uuid(),
@@ -62,7 +65,7 @@ def seed_equipment():
                 handle_types=specs.get("handle_types"),
             )
             db.add(blade_spec)
-        
+
         print("Seeding rubbers...")
         for rubber_data in RUBBERS:
             equipment = Equipment(
@@ -78,7 +81,7 @@ def seed_equipment():
             )
             db.add(equipment)
             db.flush()
-            
+
             specs = rubber_data.get("specs", {})
             rubber_spec = RubberSpecs(
                 id=shortuuid.uuid(),
@@ -95,7 +98,7 @@ def seed_equipment():
                 durability=specs.get("durability"),
             )
             db.add(rubber_spec)
-        
+
         db.commit()
         print(f"Seeded {len(BLADES)} blades and {len(RUBBERS)} rubbers successfully!")
     except Exception as e:
@@ -129,7 +132,7 @@ def seed_posts_and_forums():
                 db.add(post)
             db.commit()
             print(f"Seeded {len(SEED_POSTS)} posts successfully!")
-        
+
         print("Checking existing forums...")
         existing_forums = db.query(Forums).count()
         if existing_forums > 0:
@@ -159,23 +162,24 @@ def seed_posts_and_forums():
 
 def seed_all():
     """Run all seeders"""
-    print("="*60)
+    print("=" * 60)
     print("TT CYCLOPEDIA DATABASE SEEDER")
-    print("="*60)
-    
+    print("=" * 60)
+
     # Create tables if not exist
     print("Creating tables...")
     Base.metadata.create_all(engine)
     print("Tables ready.")
-    
+
     seed_equipment()
     seed_posts_and_forums()
-    
-    print("="*60)
+
+    print("=" * 60)
     print("SEEDING COMPLETE!")
-    print("="*60)
+    print("=" * 60)
 
 
 if __name__ == "__main__":
     import shortuuid
+
     seed_all()

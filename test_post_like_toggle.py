@@ -8,16 +8,13 @@ import json
 
 # Configuration
 BASE_URL = "http://localhost:8000"
-TEST_USER = {
-    "username": "testuser",
-    "password": "testpass123",
-    "email": "test@example.com"
-}
+TEST_USER = {"username": "testuser", "password": "testpass123", "email": "test@example.com"}
+
 
 def test_post_like_toggle():
     print("🧪 Testing Post Like Toggle Functionality")
     print("=" * 50)
-    
+
     # Step 1: Create a test user
     print("1. Creating test user...")
     try:
@@ -32,14 +29,11 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error creating user: {e}")
         return
-    
+
     # Step 2: Login to get access token
     print("2. Logging in...")
     try:
-        login_data = {
-            "username": TEST_USER["username"],
-            "password": TEST_USER["password"]
-        }
+        login_data = {"username": TEST_USER["username"], "password": TEST_USER["password"]}
         response = requests.post(f"{BASE_URL}/users/login", json=login_data)
         if response.status_code == 200:
             token_data = response.json()
@@ -51,14 +45,14 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error logging in: {e}")
         return
-    
+
     # Step 3: Create a test post
     print("3. Creating test post...")
     headers = {"Authorization": f"Bearer {access_token}"}
     try:
         post_data = {
             "title": "Test Post for Like Toggle",
-            "content": "This is a test post to verify like toggle functionality"
+            "content": "This is a test post to verify like toggle functionality",
         }
         response = requests.post(f"{BASE_URL}/posts", data=post_data, headers=headers)
         if response.status_code == 201:
@@ -73,7 +67,7 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error creating post: {e}")
         return
-    
+
     # Step 4: Test like toggle (first like)
     print("4. Testing first like...")
     try:
@@ -85,7 +79,7 @@ def test_post_like_toggle():
             print(f"   ✅ Like successful")
             print(f"   📊 Likes: {initial_likes} → {new_likes}")
             print(f"   ❤️  Liked by current user: {liked_status}")
-            
+
             if new_likes == initial_likes + 1 and liked_status == True:
                 print("   ✅ Like behavior correct")
             else:
@@ -97,7 +91,7 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error liking post: {e}")
         return
-    
+
     # Step 5: Test like toggle (unlike)
     print("5. Testing unlike...")
     try:
@@ -109,7 +103,7 @@ def test_post_like_toggle():
             print(f"   ✅ Unlike successful")
             print(f"   📊 Likes: {new_likes} → {final_likes}")
             print(f"   ❤️  Liked by current user: {liked_status}")
-            
+
             if final_likes == new_likes - 1 and liked_status == False:
                 print("   ✅ Unlike behavior correct")
             else:
@@ -121,7 +115,7 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error unliking post: {e}")
         return
-    
+
     # Step 5.5: Test multiple unlikes (should stay at 0)
     print("5.5. Testing multiple unlikes (should stay at 0)...")
     try:
@@ -132,7 +126,7 @@ def test_post_like_toggle():
             liked_status = result["likedByCurrentUser"]
             print(f"   📊 Likes after multiple unlike: {final_likes} → {multiple_unlike_likes}")
             print(f"   ❤️  Liked by current user: {liked_status}")
-            
+
             if multiple_unlike_likes == 0 and liked_status == False:
                 print("   ✅ Multiple unlike behavior correct (stays at 0)")
             else:
@@ -144,7 +138,7 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error multiple unliking post: {e}")
         return
-    
+
     # Step 6: Test like toggle again (re-like)
     print("6. Testing re-like...")
     try:
@@ -156,7 +150,7 @@ def test_post_like_toggle():
             print(f"   ✅ Re-like successful")
             print(f"   📊 Likes: {final_likes} → {re_likes}")
             print(f"   ❤️  Liked by current user: {liked_status}")
-            
+
             if re_likes == final_likes + 1 and liked_status == True:
                 print("   ✅ Re-like behavior correct")
             else:
@@ -168,9 +162,10 @@ def test_post_like_toggle():
     except Exception as e:
         print(f"   ❌ Error re-liking post: {e}")
         return
-    
+
     print("\n🎉 All tests passed! Post like toggle functionality is working correctly.")
     print("=" * 50)
 
+
 if __name__ == "__main__":
-    test_post_like_toggle() 
+    test_post_like_toggle()

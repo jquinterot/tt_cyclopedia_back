@@ -1,5 +1,6 @@
 import sys
-sys.path.insert(0, '/Users/johany/Documents/projects/python/fastapi/tt_cyclopedia_back')
+
+sys.path.insert(0, "/Users/johany/Documents/projects/python/fastapi/tt_cyclopedia_back")
 
 # Import ALL models first to resolve relationships
 from app.routers.users.models import Users
@@ -21,29 +22,29 @@ db.commit()
 
 # Get some equipment IDs
 equipment = db.query(Equipment).all()
-blades = [e for e in equipment if e.category == 'blade']
+blades = [e for e in equipment if e.category == "blade"]
 
 # Seed posts with equipment links
 for i, post_data in enumerate(SEED_POSTS):
     post = Posts(
         id=shortuuid.uuid(),
-        title=post_data['title'],
-        content=post_data['content'],
-        image_url=post_data.get('image_url', '/static/default/default.jpeg'),
+        title=post_data["title"],
+        content=post_data["content"],
+        image_url=post_data.get("image_url", "/static/default/default.jpeg"),
         likes=0,
-        author=post_data['author'],
-        stats=post_data.get('stats'),
+        author=post_data["author"],
+        stats=post_data.get("stats"),
         equipment_id=blades[i % len(blades)].id if blades else None,
     )
     db.add(post)
 
 db.commit()
-print(f'Created {len(SEED_POSTS)} posts linked to equipment')
+print(f"Created {len(SEED_POSTS)} posts linked to equipment")
 
 # Verify
 posts = db.query(Posts).all()
 for p in posts:
-    eq_name = p.equipment.name if p.equipment else 'None'
+    eq_name = p.equipment.name if p.equipment else "None"
     print(f"  - {p.title[:50]}... -> Equipment: {eq_name}")
 
 db.close()
